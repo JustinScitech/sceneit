@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SceneIt - 3D Model Viewer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>SceneIt - 3D Model Viewer</h1>
+            <p>Upload a 3D model (.glb, .gltf) to view it in the scene</p>
+        </header>
+
+        <div class="upload-section">
+            <input type="file" id="fileInput" accept=".glb,.gltf" style="display: none;">
+            <div id="dropZone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <div class="drop-icon">📁</div>
+                    <h3>Drag & Drop Your 3D Model</h3>
+                    <p>Or click to browse files</p>
+                    <div class="supported-formats">Supports .glb and .gltf files</div>
+                </div>
+                <div class="drop-zone-overlay">
+                    <div class="drop-zone-overlay-content">
+                        <div class="drop-icon-large">⬇️</div>
+                        <h3>Drop your 3D model here</h3>
+                    </div>
+                </div>
+            </div>
+            <button id="uploadBtn" class="upload-btn" style="margin-top: 20px;">
+                📁 Choose 3D Model
+            </button>
+            <div id="fileName" class="file-name"></div>
+        </div>
+
+        <div class="viewer-container">
+            <canvas id="threejs-canvas"></canvas>
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Loading model...</p>
+            </div>
+            <div id="instructions" class="instructions">
+                <p>🖱️ Left click + drag: Rotate</p>
+                <p>🖱️ Right click + drag: Pan</p>
+                <p>🖱️ Scroll: Zoom</p>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div id="modelInfo" class="model-info" style="display: none;">
+                <h3>Model Information</h3>
+                <div id="modelDetails"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+
+</html>

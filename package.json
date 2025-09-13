@@ -1,0 +1,26 @@
+{
+    "name": "sceneit-3d-viewer",
+    "version": "1.0.0",
+    "description": "A Three.js application for uploading and viewing 3D models",
+    "main": "main.js",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "three": "^0.157.0"
+    },
+    "devDependencies": {
+        "vite": "^4.4.9"
+    },
+    "keywords": [
+        "threejs",
+        "3d",
+        "webgl",
+        "model-viewer"
+    ],
+    "author": "",
+    "license": "MIT"
+}

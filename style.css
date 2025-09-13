@@ -1,0 +1,369 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+.upload-section {
+    padding: 30px;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+}
+
+.upload-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.upload-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.upload-btn:active {
+    transform: translateY(0);
+}
+
+.file-name {
+    margin-top: 15px;
+    font-size: 1rem;
+    color: #666;
+    font-style: italic;
+}
+
+
+/* Drag and Drop Zone Styles */
+
+.drop-zone {
+    position: relative;
+    border: 3px dashed #ccc;
+    border-radius: 20px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    margin-bottom: 10px;
+}
+
+.drop-zone:hover {
+    border-color: #667eea;
+    background: linear-gradient(135deg, #f0f4ff 0%, #e6efff 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+}
+
+.drop-zone.drag-over {
+    border-color: #667eea;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transform: scale(1.02);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.drop-zone-content {
+    transition: all 0.3s ease;
+}
+
+.drop-zone.drag-over .drop-zone-content {
+    opacity: 0;
+}
+
+.drop-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.7;
+}
+
+.drop-zone h3 {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.drop-zone p {
+    color: #666;
+    font-size: 1rem;
+    margin-bottom: 15px;
+}
+
+.supported-formats {
+    font-size: 0.9rem;
+    color: #888;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 8px 16px;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.drop-zone-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(102, 126, 234, 0.95);
+    border-radius: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.drop-zone.drag-over .drop-zone-overlay {
+    opacity: 1;
+}
+
+.drop-zone-overlay-content {
+    text-align: center;
+    color: white;
+}
+
+.drop-icon-large {
+    font-size: 4rem;
+    margin-bottom: 15px;
+    animation: bounce 1s infinite;
+}
+
+.drop-zone-overlay h3 {
+    color: white;
+    font-size: 1.8rem;
+    margin: 0;
+}
+
+@keyframes bounce {
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-10px);
+    }
+    60% {
+        transform: translateY(-5px);
+    }
+}
+
+.viewer-container {
+    position: relative;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 600px;
+}
+
+#threejs-canvas {
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    background: #f8f9fa;
+}
+
+.loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.95);
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.instructions {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    color: #666;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.instructions p {
+    margin-bottom: 5px;
+}
+
+.instructions p:last-child {
+    margin-bottom: 0;
+}
+
+.info-panel {
+    padding: 30px;
+    background: #f8f9fa;
+    border-top: 1px solid #eee;
+}
+
+.model-info {
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.model-info h3 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 10px;
+}
+
+.model-info p {
+    margin-bottom: 8px;
+    font-size: 1rem;
+    color: #555;
+}
+
+.model-info p:last-child {
+    margin-bottom: 0;
+}
+
+
+/* Responsive design */
+
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    header h1 {
+        font-size: 2rem;
+    }
+    header p {
+        font-size: 1rem;
+    }
+    .upload-section,
+    .info-panel {
+        padding: 20px;
+    }
+    .drop-zone {
+        padding: 30px 15px;
+    }
+    .drop-zone h3 {
+        font-size: 1.3rem;
+    }
+    .drop-icon {
+        font-size: 2.5rem;
+    }
+    .drop-icon-large {
+        font-size: 3rem;
+    }
+    .drop-zone-overlay h3 {
+        font-size: 1.5rem;
+    }
+    .viewer-container {
+        padding: 10px;
+        min-height: 400px;
+    }
+    #threejs-canvas {
+        width: 100% !important;
+        height: 400px !important;
+    }
+    .instructions {
+        position: relative;
+        top: auto;
+        left: auto;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    header {
+        padding: 20px;
+    }
+    header h1 {
+        font-size: 1.8rem;
+    }
+    .upload-btn {
+        padding: 12px 25px;
+        font-size: 1rem;
+    }
+    .drop-zone {
+        padding: 25px 10px;
+    }
+    .drop-zone h3 {
+        font-size: 1.2rem;
+    }
+    .drop-icon {
+        font-size: 2rem;
+    }
+    .drop-icon-large {
+        font-size: 2.5rem;
+    }
+    .viewer-container {
+        min-height: 300px;
+    }
+    #threejs-canvas {
+        height: 300px !important;
+    }
+}
