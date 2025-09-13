@@ -27,7 +27,7 @@ export async function generateMetadata(props: { params: Promise<{ collection: st
   if (!collection) return notFound();
 
   return {
-    title: `ACME Store | ${collection.seo?.title || collection.title}`,
+    title: `SceneIt.ai | ${collection.seo?.title || collection.title}`,
     description: collection.seo?.description || collection.description || `${collection.title} products`,
   };
 }

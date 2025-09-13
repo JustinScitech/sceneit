@@ -23,18 +23,18 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "ACME Store",
-  description: "ACME Store, your one-stop shop for all your needs.",
+  title: "SceneIt.ai",
+  description: "SceneIt.ai - Experience products in 3D like never before.",
     generator: 'v0.app'
 }
 
 /**
- * Root Layout Component for ACME Store
+ * Root Layout Component for SceneIt.ai
  *
  * This is the main layout component that wraps the entire application.
  * It provides essential providers and global functionality including:
  * - Shopify e-commerce integration with cart management
- * - Font configuration with Geist Sans and Mono
+ * - Font configuration with Inter
  * - Toast notifications for user feedback
  * - URL state management with nuqs
  * - Development debugging tools

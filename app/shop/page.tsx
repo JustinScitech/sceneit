@@ -7,8 +7,8 @@ import { ProductGrid } from './components/product-grid';
 import { ProductCardSkeleton } from './components/product-card-skeleton';
 
 export const metadata: Metadata = {
-  title: 'ACME Store | Shop',
-  description: 'ACME Store, your one-stop shop for all your needs.',
+  title: 'SceneIt.ai | Shop',
+  description: 'SceneIt.ai - Experience products in 3D like never before.',
 };
 
 // Enable ISR with 1 minute revalidation

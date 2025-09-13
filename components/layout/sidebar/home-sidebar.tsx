@@ -9,7 +9,7 @@ export function HomeSidebar({ collections }: HomeSidebarProps) {
   return (
     <aside className="max-md:hidden col-span-4 h-screen sticky top-0 p-sides pt-top-spacing flex flex-col justify-between">
       <div>
-        <p className="italic tracking-tighter text-base">Refined. Minimal. Never boring.</p>
+        <p className="italic tracking-tighter text-base">Seen it. Scene it. Sell it.</p>
         <div className="mt-5 text-base leading-tight">
           <p>Furniture that speaks softly, but stands out loud.</p>
           <p>Clean lines, crafted with wit.</p>

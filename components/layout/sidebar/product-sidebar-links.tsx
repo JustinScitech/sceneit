@@ -1,4 +1,3 @@
-import { CONTACT_LINKS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { cva } from 'class-variance-authority';
 import Link from 'next/link';
@@ -29,13 +28,6 @@ interface SidebarLinksProps {
 export function SidebarLinks({ className, invert, size }: SidebarLinksProps) {
   return (
     <ul className={cn('flex flex-row gap-2 justify-between', className)}>
-      {CONTACT_LINKS.map(link => (
-        <li key={link.href}>
-          <Link href={link.href} target="_blank" className={linkVariants({ invert, size })}>
-            {link.label}
-          </Link>
-        </li>
-      ))}
     </ul>
   );
 }

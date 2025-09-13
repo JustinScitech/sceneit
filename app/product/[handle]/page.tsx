@@ -21,8 +21,7 @@ import { Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import { PageLayout } from '@/components/layout/page-layout';
 import { VariantSelectorSlots } from './components/variant-selector-slots';
-import { MobileGallerySlider } from './components/mobile-gallery-slider';
-import { DesktopGallery } from './components/desktop-gallery';
+import { Mobile3DViewer, Desktop3DViewer } from '@/components/product/3d-viewer';
 
 // Generate static params for all products at build time
 export async function generateStaticParams() {
@@ -116,10 +115,10 @@ export default async function ProductPage(props: { params: Promise<{ handle: str
       />
 
       <div className="flex flex-col md:grid md:grid-cols-12 md:gap-sides min-h-max">
-        {/* Mobile Gallery Slider */}
+        {/* Mobile 3D Viewer */}
         <div className="md:hidden col-span-full h-[60vh] min-h-[400px]">
           <Suspense fallback={null}>
-            <MobileGallerySlider product={product} />
+            <Mobile3DViewer product={product} />
           </Suspense>
         </div>
 
@@ -172,7 +171,7 @@ export default async function ProductPage(props: { params: Promise<{ handle: str
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Suspense fallback={<VariantSelectorSlots product={product} fallback />}>
+                <Suspense fallback={<div className="space-y-2"><div className="h-10 bg-muted rounded animate-pulse"></div></div>}>
                   <VariantSelectorSlots product={product} />
                 </Suspense>
 
@@ -207,10 +206,10 @@ export default async function ProductPage(props: { params: Promise<{ handle: str
           <SidebarLinks className="flex-col-reverse max-md:hidden py-sides w-full max-w-[408px] pr-sides max-md:pr-0 max-md:py-0" />
         </div>
 
-        {/* Desktop Gallery */}
+        {/* Desktop 3D Viewer */}
         <div className="hidden overflow-y-auto relative col-span-7 col-start-6 w-full md:block">
           <Suspense fallback={null}>
-            <DesktopGallery product={product} />
+            <Desktop3DViewer product={product} />
           </Suspense>
         </div>
       </div>
