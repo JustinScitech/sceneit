@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+@layer utilities {
+  .base-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--sides);
+  }
+
+  .base-gap {
+    gap: var(--sides);
+  }
+
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+    }
+  }
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: 223.81 0% 94%;
+  --foreground: 223.81 0% 4%;
+  --card: 0 0% 88%;
+  --card-foreground: 223.81 0% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 223.81 0% 4%;
+  --primary: 223.81 0% 9%;
+  --primary-foreground: 223.81 0% 98%;
+  --secondary: 223.81 0% 96%;
+  --secondary-foreground: 223.81 0% 9%;
+  --muted: 223.81 0% 88%;
+  --muted-foreground: 223.81 0% 45%;
+  --accent: 223.81 0% 90%;
+  --accent-foreground: 223.81 0% 9%;
+  --destructive: 357.18 100% 45%;
+  --border: 223.81 0% 74%;
+  --input: 223.81 0% 90%;
+  --ring: 223.81 0% 63%;
+  --chart-1: 12 76% 61%;
+  --chart-2: 173 58% 39%;
+  --chart-3: 197 37% 24%;
+  --chart-4: 43 74% 66%;
+  --chart-5: 27 87% 67%;
+
+  --sides: 1rem;
+  --modal-sides: 0.75rem;
+  --top-spacing: 5rem;
+  --height-fold: 100vh;
+  --height-fold: 100svh;
+
+  @screen md {
+    --sides: 1.5rem;
+    --modal-sides: 1rem;
+    --top-spacing: 9rem;
+  }
+
+  @screen lg {
+    --modal-sides: 1.5rem;
+  }
+}
+
+html,
+body,
+* {
+  overscroll-behavior: none;
+  scroll-behavior: smooth;
+}
+
+/* @media (min-width: 1028px) {
+  html {
+    font-size: 0.7em;
+  }
+} */
+
+/* @media (min-width: 1240px) and (max-width: 1919px) {
+  html {
+    font-size: 0.85em;
+  }
+}
+
+@media (min-width: 1920px) {
+  html {
+    font-size: 1em;
+  }
+}
+
+@media (min-width: 2160px) {
+  html {
+    font-size: 1.2em;
+  }
+} */
