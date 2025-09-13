@@ -101,7 +101,7 @@ export default function MobileMenu({ collections }: MobileMenuProps) {
                 <ShopLinks label="Categories" collections={collections} />
 
                 <div className="mt-auto mb-6 text-sm leading-tight opacity-50">
-                  <p className="italic">Refined. Minimal. Never boring.</p>
+                  <p className="italic">SceneIt.ai</p>
                   <div className="mt-5">
                     <p>Furniture that speaks softly, but stands out loud.</p>
                     <p>Clean lines, crafted with wit.</p>

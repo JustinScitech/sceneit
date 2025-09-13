@@ -1,4 +1,4 @@
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from 'next/cache';
+import { unstable_cache } from 'next/cache';
 import { TAGS } from '@/lib/constants';
 import {
   getCollections as getShopifyCollections,
@@ -140,87 +140,87 @@ function adaptShopifyProduct(shopifyProduct: ShopifyProduct): Product {
 // Cart adapting happens in server actions to avoid cyclic deps
 
 // Public API functions
-export async function getCollections(): Promise<Collection[]> {
-  'use cache';
-  cacheTag(TAGS.collections);
-  cacheLife('minutes');
+export const getCollections = unstable_cache(
+  async (): Promise<Collection[]> => {
+    try {
+      const shopifyCollections = await getShopifyCollections();
+      return shopifyCollections.map(adaptShopifyCollection);
+    } catch (error) {
+      console.error('Error fetching collections:', error);
+      return [];
+    }
+  },
+  ['collections'],
+  { tags: [TAGS.collections], revalidate: 60 }
+);
 
-  try {
-    const shopifyCollections = await getShopifyCollections();
-    return shopifyCollections.map(adaptShopifyCollection);
-  } catch (error) {
-    console.error('Error fetching collections:', error);
-    return [];
-  }
-}
+export const getCollection = unstable_cache(
+  async (handle: string): Promise<Collection | null> => {
+    try {
+      const collections = await getShopifyCollections();
+      const collection = collections.find(collection => collection.handle === handle);
+      return collection ? adaptShopifyCollection(collection) : null;
+    } catch (error) {
+      console.error('Error fetching collection:', error);
+      return null;
+    }
+  },
+  ['collection'],
+  { tags: [TAGS.collections], revalidate: 60 }
+);
 
-export async function getCollection(handle: string): Promise<Collection | null> {
-  'use cache';
-  cacheTag(TAGS.collections);
-  cacheLife('minutes');
+export const getProduct = unstable_cache(
+  async (handle: string): Promise<Product | null> => {
+    try {
+      const shopifyProduct = await getShopifyProduct(handle);
+      return shopifyProduct ? adaptShopifyProduct(shopifyProduct) : null;
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      return null;
+    }
+  },
+  ['product'],
+  { tags: [TAGS.products], revalidate: 60 }
+);
 
-  try {
-    const collections = await getShopifyCollections();
-    const collection = collections.find(collection => collection.handle === handle);
-    return collection ? adaptShopifyCollection(collection) : null;
-  } catch (error) {
-    console.error('Error fetching collection:', error);
-    return null;
-  }
-}
+export const getProducts = unstable_cache(
+  async (params: {
+    limit?: number;
+    sortKey?: ProductSortKey;
+    reverse?: boolean;
+    query?: string;
+  }): Promise<Product[]> => {
+    try {
+      const shopifyProducts = await getShopifyProducts(params);
+      return shopifyProducts.map(adaptShopifyProduct);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      return [];
+    }
+  },
+  ['products'],
+  { tags: [TAGS.products], revalidate: 60 }
+);
 
-export async function getProduct(handle: string): Promise<Product | null> {
-  'use cache';
-  cacheTag(TAGS.products);
-  cacheLife('minutes');
-
-  try {
-    const shopifyProduct = await getShopifyProduct(handle);
-    return shopifyProduct ? adaptShopifyProduct(shopifyProduct) : null;
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    return null;
-  }
-}
-
-export async function getProducts(params: {
-  limit?: number;
-  sortKey?: ProductSortKey;
-  reverse?: boolean;
-  query?: string;
-}): Promise<Product[]> {
-  'use cache';
-  cacheTag(TAGS.products);
-  cacheLife('minutes');
-
-  try {
-    const shopifyProducts = await getShopifyProducts(params);
-    return shopifyProducts.map(adaptShopifyProduct);
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    return [];
-  }
-}
-
-export async function getCollectionProducts(params: {
-  collection: string;
-  limit?: number;
-  sortKey?: ProductCollectionSortKey;
-  reverse?: boolean;
-  query?: string;
-}): Promise<Product[]> {
-  'use cache';
-  cacheTag(TAGS.collectionProducts);
-  cacheLife('minutes');
-
-  try {
-    const shopifyProducts = await getShopifyCollectionProducts(params);
-    return shopifyProducts.map(adaptShopifyProduct);
-  } catch (error) {
-    console.error('Error fetching collection products:', error);
-    return [];
-  }
-}
+export const getCollectionProducts = unstable_cache(
+  async (params: {
+    collection: string;
+    limit?: number;
+    sortKey?: ProductCollectionSortKey;
+    reverse?: boolean;
+    query?: string;
+  }): Promise<Product[]> => {
+    try {
+      const shopifyProducts = await getShopifyCollectionProducts(params);
+      return shopifyProducts.map(adaptShopifyProduct);
+    } catch (error) {
+      console.error('Error fetching collection products:', error);
+      return [];
+    }
+  },
+  ['collection-products'],
+  { tags: [TAGS.collectionProducts], revalidate: 60 }
+);
 
 export async function getCart(): Promise<Cart | null> {
   try {

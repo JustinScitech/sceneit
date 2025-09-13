@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Inter } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "sonner"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
@@ -17,29 +17,24 @@ const V0Setup = dynamic(() => import("@/components/v0-setup"))
 
 const isV0 = process.env["VERCEL_URL"]?.includes("vusercontent.net") ?? false
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-})
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 })
 
 export const metadata: Metadata = {
-  title: "ACME Store",
-  description: "ACME Store, your one-stop shop for all your needs.",
+  title: "SceneIt.ai",
+  description: "SceneIt.ai - Experience products in 3D like never before.",
     generator: 'v0.app'
 }
 
 /**
- * Root Layout Component for ACME Store
+ * Root Layout Component for SceneIt.ai
  *
  * This is the main layout component that wraps the entire application.
  * It provides essential providers and global functionality including:
  * - Shopify e-commerce integration with cart management
- * - Font configuration with Geist Sans and Mono
+ * - Font configuration with Inter
  * - Toast notifications for user feedback
  * - URL state management with nuqs
  * - Development debugging tools
@@ -55,7 +50,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={cn(geistSans.variable, geistMono.variable, "antialiased min-h-screen", { "is-v0": isV0 })}
+        className={cn(inter.variable, "antialiased min-h-screen", { "is-v0": isV0 })}
         suppressHydrationWarning
       >
         <V0Provider isV0={isV0}>
