@@ -6,6 +6,10 @@ import { cn } from '@/lib/utils';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { useWebSocket } from '@/lib/hooks/use-websocket';
+import { use3DControls } from '@/lib/hooks/use-3d-controls';
+import { VapiChat } from '@/components/vapi/vapi-chat';
+import { initializeWebhookServer } from '@/lib/utils/webhook-init';
 
 interface Product3DViewerProps {
   product: Product;
@@ -36,6 +40,44 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Initialize 3D controls hook
+  const { setSceneRef, moveCameraTo, logCurrentPositions } = use3DControls({
+    onPositionChange: (position) => {
+      // Optional: Handle position changes
+      console.log('Camera position changed:', position);
+    }
+  });
+
+  // WebSocket connection for VAPI commands (enabled by default for VAPI integration)
+  const [enableWebSocket, setEnableWebSocket] = useState(true);
+  
+  console.log('WebSocket enabled:', enableWebSocket);
+  console.log('WebSocket URL:', enableWebSocket ? 'ws://localhost:8081' : 'disabled');
+  
+  const { isConnected, sendMessage } = useWebSocket({
+    url: enableWebSocket ? 'ws://localhost:8081' : '',
+    onMessage: (message: any) => {
+      console.log('WS-MESSAGE-RECEIVED:', message);
+      
+      if (message.type === 'cameraCommand' && message.action === 'moveTo') {
+        const { x, y, z, target } = message.params;
+        console.log('EXECUTING-CAMERA-MOVE:', { x, y, z, target });
+        moveCameraTo({ x, y, z, target });
+      }
+    },
+    onConnect: () => {
+      console.log('WS-CONNECTED to port 8081');
+    },
+    onDisconnect: () => {
+      console.log('WS-DISCONNECTED from port 8081');
+    },
+    onError: (error: any) => {
+      console.log('WS-ERROR:', error);
+    },
+    maxReconnectAttempts: 5, // Try multiple times
+    reconnectInterval: 2000   // Wait 2 seconds between attempts
+  });
 
   // Determine which GLB model to load based on product type
   const getProductModelPath = useCallback((productTitle: string): string => {
@@ -104,6 +146,9 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
       loader,
       animationId: null
     };
+
+    // Set the scene reference for 3D controls
+    setSceneRef(sceneRef.current);
 
     // Start animation loop
     startAnimation();
@@ -345,6 +390,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
     } finally {
       setIsLoading(false);
       URL.revokeObjectURL(url);
+      logCurrentPositions();
     }
   };
 
@@ -494,6 +540,9 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
   useEffect(() => {
     const cleanup = initThreeJS();
     
+    // Initialize WebSocket server when component loads
+    initializeWebhookServer();
+    
     // Prevent default drag behaviors on the document
     const preventDefaults = (e: Event) => {
       e.preventDefault();
@@ -611,6 +660,35 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
       {/* 3D Badge */}
       <div className="absolute top-4 right-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg">
         3D View
+      </div>
+
+      {/* VAPI Chat Interface */}
+      <div className="absolute bottom-4 left-4 w-80">
+        <VapiChat 
+          productContext={{
+            name: product.title,
+            price: product.priceRange.maxVariantPrice.amount + ' ' + product.priceRange.maxVariantPrice.currencyCode,
+            description: product.description
+          }}
+        />
+        
+        {/* WebSocket Connection Toggle */}
+        <div className="mt-2">
+          <button
+            onClick={() => setEnableWebSocket(!enableWebSocket)}
+            className={cn(
+              "px-3 py-1 text-xs rounded-full transition-colors",
+              enableWebSocket 
+                ? "bg-green-100 text-green-700 border border-green-300" 
+                : "bg-gray-100 text-gray-600 border border-gray-300"
+            )}
+          >
+            {enableWebSocket ? '🟢 WebSocket ON' : '⚫ WebSocket OFF'}
+          </button>
+          {isConnected && (
+            <span className="ml-2 text-xs text-green-600">Connected</span>
+          )}
+        </div>
       </div>
     </div>
   );
