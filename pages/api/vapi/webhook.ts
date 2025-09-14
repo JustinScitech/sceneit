@@ -214,15 +214,21 @@ function processPurchase(params: any) {
     const { convertVendorProductToShopifyProduct } = require('@/lib/utils/product-converter');
     
     const localProducts = getAllLocalProducts();
+    console.log('PURCHASE-DEBUG: Total local products:', localProducts.length);
+    console.log('PURCHASE-DEBUG: Searching for productId:', productId);
     
     // Find product by handle or ID
     let vendorProduct = localProducts.find((p: any) => p.id === productId);
+    console.log('PURCHASE-DEBUG: Found by ID:', !!vendorProduct);
+    
     if (!vendorProduct) {
       // Try to find by handle
       vendorProduct = localProducts.find((p: any) => {
         const handle = p.title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        console.log('PURCHASE-DEBUG: Checking product:', p.title, '-> handle:', handle, '-> matches:', handle === productId);
         return handle === productId;
       });
+      console.log('PURCHASE-DEBUG: Found by handle:', !!vendorProduct);
     }
     
     if (vendorProduct) {
