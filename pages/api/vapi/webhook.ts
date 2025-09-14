@@ -190,9 +190,117 @@ function executeCameraMovement(params: any) {
 function processPurchase(params: any) {
   console.log('Processing purchase:', params);
   
+  // Handle case where productId is passed as an object
+  let productId: string;
+  let quantity: number = 1;
+  
+  if (typeof params === 'object' && params.productId) {
+    productId = params.productId;
+    quantity = params.quantity || 1;
+  } else {
+    productId = params;
+  }
+  
+  if (!productId) {
+    return {
+      success: false,
+      message: 'Product ID is required for purchase'
+    };
+  }
+
+  // Try to fetch product from local products first
+  try {
+    const { getAllLocalProducts } = require('@/lib/utils/server-product-utils');
+    const { convertVendorProductToShopifyProduct } = require('@/lib/utils/product-converter');
+    
+    const localProducts = getAllLocalProducts();
+    
+    // Find product by handle or ID
+    let vendorProduct = localProducts.find((p: any) => p.id === productId);
+    if (!vendorProduct) {
+      // Try to find by handle
+      vendorProduct = localProducts.find((p: any) => {
+        const handle = p.title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        return handle === productId;
+      });
+    }
+    
+    if (vendorProduct) {
+      console.log('Found local product:', vendorProduct.title);
+      const shopifyProduct = convertVendorProductToShopifyProduct(vendorProduct);
+      
+      const actualProductData = {
+        id: shopifyProduct.id,
+        title: shopifyProduct.title,
+        handle: shopifyProduct.handle,
+        description: shopifyProduct.description,
+        price: shopifyProduct.priceRange.minVariantPrice.amount,
+        image: shopifyProduct.featuredImage?.url || '/placeholder-product.jpg',
+        variantId: shopifyProduct.variants[0]?.id || `${productId}-variant-1`
+      };
+      
+      // Create cart item structure
+      const globalPurchaseId = `purchase-${productId}-${quantity}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const cartItem = {
+        id: `temp-${Date.now()}`,
+        quantity: quantity,
+        cost: {
+          totalAmount: {
+            amount: actualProductData.price,
+            currencyCode: 'USD',
+          },
+        },
+        merchandise: {
+          id: actualProductData.variantId,
+          title: actualProductData.title,
+          selectedOptions: [],
+          product: {
+            id: actualProductData.id,
+            title: actualProductData.title,
+            handle: actualProductData.handle,
+            categoryId: undefined,
+            description: actualProductData.description,
+            descriptionHtml: actualProductData.description,
+            featuredImage: { 
+              url: actualProductData.image, 
+              altText: actualProductData.title, 
+              height: 400, 
+              width: 400 
+            },
+            currencyCode: 'USD',
+            priceRange: {
+              maxVariantPrice: { amount: actualProductData.price, currencyCode: 'USD' },
+              minVariantPrice: { amount: actualProductData.price, currencyCode: 'USD' },
+            },
+          },
+        },
+      };
+      
+      // Broadcast cart update to connected clients
+      broadcastToClients({
+        type: 'addToCart',
+        action: 'addItem',
+        productId: actualProductData.id,
+        variantId: actualProductData.variantId,
+        quantity: quantity,
+        cartItem: cartItem,
+        globalPurchaseId: globalPurchaseId
+      });
+      
+      return {
+        success: true,
+        message: `Added ${quantity} ${actualProductData.title} to cart successfully!`
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching local product:', error);
+  }
+  
+  // Fallback for unknown products
   return {
-    success: true, 
-    message: 'Purchase processed successfully' 
+    success: false,
+    message: `Product "${productId}" not found`
   };
 }
 
