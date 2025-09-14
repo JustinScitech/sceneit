@@ -103,9 +103,9 @@ export default function MobileMenu({ collections }: MobileMenuProps) {
                 <div className="mt-auto mb-6 text-sm leading-tight opacity-50">
                   <p className="italic">SceneIt.ai</p>
                   <div className="mt-5">
-                    <p>Furniture that speaks softly, but stands out loud.</p>
-                    <p>Clean lines, crafted with wit.</p>
-                    <p>Elegance with a wink — style first</p>
+                    <p>Upload or scan a product → auto‑generate a 3D, voice‑navigable product page → purchase via Shopify or Solana in minutes.</p>
+                    <p>Your voice‑guided 3D marketplace where AI agents showcase products with dynamic camera angles and immersive environments.</p>
+                    <p>Experience the future of online shopping — speak, explore, buy.</p>
                   </div>
                 </div>
                 <SidebarLinks className="gap-2 w-full" />

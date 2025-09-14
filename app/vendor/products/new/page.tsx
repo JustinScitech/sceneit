@@ -17,6 +17,8 @@ import Link from "next/link"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { productStorage } from "@/lib/utils/product-storage"
+import { imageStorage } from "@/lib/utils/image-storage"
 
 const categories = [
   "Electronics",
@@ -32,33 +34,89 @@ const categories = [
 export default function NewProduct() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false)
   const [images, setImages] = useState<string[]>([])
+  const [imageFiles, setImageFiles] = useState<File[]>([]) // Store actual files
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState("")
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     price: "",
-    compareAtPrice: "",
     category: "",
     inventory: "",
     sku: "",
     isActive: true,
   })
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const analyzeImage = async (imageFile: File) => {
+    setIsAnalyzingImage(true)
+    try {
+      // Convert file to base64
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const imageData = e.target?.result as string
+        
+        const response = await fetch('/api/analyze-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageData }),
+        })
+
+        if (response.ok) {
+          const productData = await response.json()
+          setFormData((prev) => ({ 
+            ...prev, 
+            title: productData.title || prev.title,
+            description: productData.description || prev.description,
+            price: productData.price || prev.price,
+            category: productData.category || prev.category,
+            sku: productData.suggested_sku || prev.sku,
+            inventory: '100' // Default inventory amount
+          }))
+          toast.success("AI analysis complete! Product details generated.")
+        } else {
+          toast.error("Failed to analyze image. Please try again.")
+        }
+      }
+      reader.readAsDataURL(imageFile)
+    } catch (error) {
+      console.error('Error analyzing image:', error)
+      toast.error("Failed to analyze image. Please try again.")
+    } finally {
+      setIsAnalyzingImage(false)
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files) {
-      // Mock image upload - replace with real upload logic
-      const newImages = Array.from(files).map(
-        (file, index) => `/placeholder.svg?height=200&width=200&query=product-${index}`,
-      )
-      setImages((prev) => [...prev, ...newImages].slice(0, 5)) // Max 5 images
+    if (files && files.length > 0) {
+      const fileArray = Array.from(files)
+      
+      // Create URLs for immediate display
+      const newImageUrls = fileArray.map((file) => URL.createObjectURL(file))
+      setImages((prev) => [...prev, ...newImageUrls].slice(0, 5)) // Max 5 images
+      
+      // Store the actual files for later processing
+      setImageFiles((prev) => [...prev, ...fileArray].slice(0, 5))
+      
+      // If this is the first image and description is empty, analyze it
+      if (images.length === 0 && !formData.description.trim()) {
+        await analyzeImage(fileArray[0])
+      }
     }
   }
 
   const removeImage = (index: number) => {
+    // Revoke object URL to prevent memory leaks
+    if (images[index]?.startsWith('blob:')) {
+      URL.revokeObjectURL(images[index])
+    }
+    
     setImages((prev) => prev.filter((_, i) => i !== index))
+    setImageFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const addTag = () => {
@@ -72,17 +130,100 @@ export default function NewProduct() {
     setTags((prev) => prev.filter((tag) => tag !== tagToRemove))
   }
 
+  const generateGLBModel = async (imageFile: File, productTitle: string) => {
+    try {
+      // Create FormData for the API call
+      const formData = new FormData()
+      formData.append('file', imageFile)
+      formData.append('productTitle', productTitle)
+      
+      // Call our internal API endpoint that handles the 3D conversion
+      const response = await fetch('/api/generate-3d-model', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        console.error('API Error Response:', result)
+        throw new Error(result.error || result.details || `API returned ${response.status}`)
+      }
+      
+      toast.success(`3D model saved to public/3D/${result.filename}`)
+      return true
+    } catch (error) {
+      console.error('Error generating 3D model:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      toast.error(`Failed to generate 3D model: ${errorMessage}. The product was still created successfully.`)
+      return false
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate required fields
+    if (images.length === 0) {
+      toast.error("Please upload at least one product image.")
+      return
+    }
+    
+    if (!formData.title.trim()) {
+      toast.error("Please enter a product title.")
+      return
+    }
+    
+    if (!formData.description.trim()) {
+      toast.error("Please enter a product description.")
+      return
+    }
+    
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      toast.error("Please enter a valid price.")
+      return
+    }
+    
+    if (!formData.category) {
+      toast.error("Please select a category.")
+      return
+    }
+    
     setIsLoading(true)
 
     try {
-      // Mock API call - replace with real API
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Store images locally first
+      const storedImages = await imageStorage.storeMultipleImages(imageFiles)
+      const imageDataUrls = storedImages.map(img => img.data)
+      
+      // Create product data structure
+      const productData = {
+        vendorId: "1", // Mock vendor ID - replace with actual vendor ID
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        price: parseFloat(formData.price),
+        images: imageDataUrls, // Use the stored image data URLs
+        category: formData.category,
+        tags: tags,
+        inventory: parseInt(formData.inventory) || 0,
+        sku: formData.sku.trim() || `SKU-${Date.now()}`,
+        isActive: formData.isActive,
+      };
 
-      toast.success("Product created successfully!")
+      // Save product to localStorage
+      const savedProduct = productStorage.saveProduct(productData);
+      
+      toast.success(`Product "${savedProduct.title}" created successfully!`)
+      
+      // Generate 3D model from the first uploaded image
+      if (imageFiles.length > 0) {
+        toast.info("Generating 3D model... This may take a moment.")
+        await generateGLBModel(imageFiles[0], savedProduct.title)
+      }
+      
       router.push("/vendor/products")
     } catch (error) {
+      console.error('Error creating product:', error);
       toast.error("Failed to create product. Please try again.")
     } finally {
       setIsLoading(false)
@@ -127,18 +268,56 @@ export default function NewProduct() {
                     </div>
 
                     <div>
-                      <Label htmlFor="description">Description</Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="description">Description</Label>
+                        <div className="flex items-center space-x-2">
+                          {images.length > 0 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                // Re-analyze the first image
+                                const firstImage = images[0]
+                                if (firstImage) {
+                                  fetch(firstImage)
+                                    .then(res => res.blob())
+                                    .then(blob => {
+                                      const file = new File([blob], "image.jpg", { type: blob.type })
+                                      analyzeImage(file)
+                                    })
+                                }
+                              }}
+                              disabled={isAnalyzingImage}
+                              className="text-xs"
+                            >
+                              🤖 Re-analyze Image
+                            </Button>
+                          )}
+                          {isAnalyzingImage && (
+                            <span className="text-sm text-blue-600 flex items-center">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                              AI analyzing image...
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <Textarea
                         id="description"
                         value={formData.description}
                         onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                        placeholder="Describe your product"
-                        rows={4}
+                        placeholder="Upload an image to automatically generate all product details, or fill in manually..."
+                        rows={6}
+                        disabled={isAnalyzingImage}
+                        className={isAnalyzingImage ? "opacity-50" : ""}
                         required
                       />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        AI will automatically generate all product details when you upload the first image. You can edit everything afterwards or click "Re-analyze Image" to regenerate all fields.
+                      </p>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-1">
                       <div>
                         <Label htmlFor="price">Price ($)</Label>
                         <Input
@@ -151,17 +330,6 @@ export default function NewProduct() {
                           required
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="compareAtPrice">Compare at Price ($)</Label>
-                        <Input
-                          id="compareAtPrice"
-                          type="number"
-                          step="0.01"
-                          value={formData.compareAtPrice}
-                          onChange={(e) => setFormData((prev) => ({ ...prev, compareAtPrice: e.target.value }))}
-                          placeholder="0.00"
-                        />
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -169,7 +337,10 @@ export default function NewProduct() {
                 {/* Images */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Product Images</CardTitle>
+                    <CardTitle className="flex items-center justify-between">
+                      Product Images
+                      <span className="text-sm font-normal text-red-500">*Required</span>
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
@@ -190,6 +361,11 @@ export default function NewProduct() {
                             >
                               <X className="h-4 w-4" />
                             </Button>
+                            {index === 0 && (
+                              <Badge className="absolute bottom-2 left-2 bg-blue-600">
+                                Main Image
+                              </Badge>
+                            )}
                           </div>
                         ))}
                         {images.length < 5 && (
@@ -206,9 +382,17 @@ export default function NewProduct() {
                           </label>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Upload up to 5 images. First image will be the main product image.
-                      </p>
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Upload up to 5 images. First image will be the main product image.
+                        </p>
+                        <p className="text-sm text-blue-600">
+                          📋 The first image will be automatically analyzed by AI to generate all product details (title, description, price, category, SKU).
+                        </p>
+                        <p className="text-sm text-green-600">
+                          🎯 When you create the product, a 3D model (.glb file) will be automatically generated from the first image and saved to public/3D/.
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -303,7 +487,7 @@ export default function NewProduct() {
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   <Save className="mr-2 h-4 w-4" />
-                  {isLoading ? "Creating..." : "Create Product"}
+                  {isLoading ? "Creating Product & 3D Model..." : "Create Product"}
                 </Button>
               </div>
             </div>
