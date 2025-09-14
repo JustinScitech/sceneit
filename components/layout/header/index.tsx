@@ -36,32 +36,42 @@ export function Header({ collections }: HeaderProps) {
   const pathname = usePathname()
 
   return (
-    <header className="grid fixed top-0 left-0 z-50 grid-cols-3 items-start w-full p-sides md:grid-cols-12 md:gap-sides">
-      <div className="block flex-none md:hidden">
-        <MobileMenu collections={collections} />
-      </div>
-      <Link href="/" className="md:col-span-3 xl:col-span-2" prefetch>
-        <LogoSvg className="w-auto h-6 max-md:place-self-center md:w-full md:h-auto max-w-96" />
-      </Link>
-      <nav className="flex gap-2 justify-end items-center md:col-span-9 xl:col-span-10">
-        <ul className="items-center gap-5 py-0.5 px-3 bg-background/10 rounded-sm backdrop-blur-md hidden md:flex">
-          {navItems.map((item) => (
-            <li key={item.href}>
+    <header className="fixed top-0 left-0 z-50 w-full bg-background/80 backdrop-blur-md border-b border-border/40">
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex items-center justify-between">
+          {/* Mobile Menu */}
+          <div className="block md:hidden">
+            <MobileMenu collections={collections} />
+          </div>
+          
+          {/* Logo */}
+          <Link href="/" className="flex-shrink-0" prefetch>
+            <LogoSvg className="h-8 w-auto" />
+          </Link>
+          
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center space-x-8">
+            {navItems.map((item) => (
               <Link
+                key={item.href}
                 href={item.href}
                 className={cn(
-                  "font-semibold text-base transition-colors duration-200 uppercase",
-                  pathname === item.href ? "text-foreground" : "text-foreground/50",
+                  "font-medium text-sm transition-colors duration-200 uppercase tracking-wide hover:text-foreground",
+                  pathname === item.href ? "text-foreground" : "text-foreground/70",
                 )}
                 prefetch
               >
                 {item.label}
               </Link>
-            </li>
-          ))}
-        </ul>
-        <CartModal />
-      </nav>
+            ))}
+          </nav>
+          
+          {/* Cart */}
+          <div className="flex items-center">
+            <CartModal />
+          </div>
+        </div>
+      </div>
     </header>
   )
 }

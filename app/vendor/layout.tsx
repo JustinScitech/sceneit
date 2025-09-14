@@ -8,7 +8,7 @@ export default function VendorLayout({
 }) {
   return (
     <VendorProvider>
-      <div className="min-h-screen bg-background">{children}</div>
+      <div className="min-h-screen bg-background pt-20">{children}</div>
     </VendorProvider>
   )
 }
