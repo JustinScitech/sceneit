@@ -32,6 +32,7 @@ const categories = [
 export default function NewProduct() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false)
   const [images, setImages] = useState<string[]>([])
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState("")
@@ -39,21 +40,66 @@ export default function NewProduct() {
     title: "",
     description: "",
     price: "",
-    compareAtPrice: "",
     category: "",
     inventory: "",
     sku: "",
     isActive: true,
   })
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const analyzeImage = async (imageFile: File) => {
+    setIsAnalyzingImage(true)
+    try {
+      // Convert file to base64
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const imageData = e.target?.result as string
+        
+        const response = await fetch('/api/analyze-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageData }),
+        })
+
+        if (response.ok) {
+          const productData = await response.json()
+          setFormData((prev) => ({ 
+            ...prev, 
+            title: productData.title || prev.title,
+            description: productData.description || prev.description,
+            price: productData.price || prev.price,
+            category: productData.category || prev.category,
+            sku: productData.suggested_sku || prev.sku,
+            inventory: '100' // Default inventory amount
+          }))
+          toast.success("AI analysis complete! Product details generated.")
+        } else {
+          toast.error("Failed to analyze image. Please try again.")
+        }
+      }
+      reader.readAsDataURL(imageFile)
+    } catch (error) {
+      console.error('Error analyzing image:', error)
+      toast.error("Failed to analyze image. Please try again.")
+    } finally {
+      setIsAnalyzingImage(false)
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files) {
-      // Mock image upload - replace with real upload logic
-      const newImages = Array.from(files).map(
-        (file, index) => `/placeholder.svg?height=200&width=200&query=product-${index}`,
-      )
-      setImages((prev) => [...prev, ...newImages].slice(0, 5)) // Max 5 images
+    if (files && files.length > 0) {
+      const fileArray = Array.from(files)
+      
+      // Create URLs for display
+      const newImageUrls = fileArray.map((file) => URL.createObjectURL(file))
+      setImages((prev) => [...prev, ...newImageUrls].slice(0, 5)) // Max 5 images
+      
+      // If this is the first image and description is empty, analyze it
+      if (images.length === 0 && !formData.description.trim()) {
+        await analyzeImage(fileArray[0])
+      }
     }
   }
 
@@ -74,6 +120,13 @@ export default function NewProduct() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate required fields
+    if (images.length === 0) {
+      toast.error("Please upload at least one product image.")
+      return
+    }
+    
     setIsLoading(true)
 
     try {
@@ -127,18 +180,56 @@ export default function NewProduct() {
                     </div>
 
                     <div>
-                      <Label htmlFor="description">Description</Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="description">Description</Label>
+                        <div className="flex items-center space-x-2">
+                          {images.length > 0 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                // Re-analyze the first image
+                                const firstImage = images[0]
+                                if (firstImage) {
+                                  fetch(firstImage)
+                                    .then(res => res.blob())
+                                    .then(blob => {
+                                      const file = new File([blob], "image.jpg", { type: blob.type })
+                                      analyzeImage(file)
+                                    })
+                                }
+                              }}
+                              disabled={isAnalyzingImage}
+                              className="text-xs"
+                            >
+                              🤖 Re-analyze Image
+                            </Button>
+                          )}
+                          {isAnalyzingImage && (
+                            <span className="text-sm text-blue-600 flex items-center">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                              AI analyzing image...
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <Textarea
                         id="description"
                         value={formData.description}
                         onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                        placeholder="Describe your product"
-                        rows={4}
+                        placeholder="Upload an image to automatically generate all product details, or fill in manually..."
+                        rows={6}
+                        disabled={isAnalyzingImage}
+                        className={isAnalyzingImage ? "opacity-50" : ""}
                         required
                       />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        AI will automatically generate all product details when you upload the first image. You can edit everything afterwards or click "Re-analyze Image" to regenerate all fields.
+                      </p>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-1">
                       <div>
                         <Label htmlFor="price">Price ($)</Label>
                         <Input
@@ -151,17 +242,6 @@ export default function NewProduct() {
                           required
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="compareAtPrice">Compare at Price ($)</Label>
-                        <Input
-                          id="compareAtPrice"
-                          type="number"
-                          step="0.01"
-                          value={formData.compareAtPrice}
-                          onChange={(e) => setFormData((prev) => ({ ...prev, compareAtPrice: e.target.value }))}
-                          placeholder="0.00"
-                        />
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -169,7 +249,10 @@ export default function NewProduct() {
                 {/* Images */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Product Images</CardTitle>
+                    <CardTitle className="flex items-center justify-between">
+                      Product Images
+                      <span className="text-sm font-normal text-red-500">*Required</span>
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
@@ -190,6 +273,11 @@ export default function NewProduct() {
                             >
                               <X className="h-4 w-4" />
                             </Button>
+                            {index === 0 && (
+                              <Badge className="absolute bottom-2 left-2 bg-blue-600">
+                                Main Image
+                              </Badge>
+                            )}
                           </div>
                         ))}
                         {images.length < 5 && (
@@ -206,9 +294,14 @@ export default function NewProduct() {
                           </label>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Upload up to 5 images. First image will be the main product image.
-                      </p>
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Upload up to 5 images. First image will be the main product image.
+                        </p>
+                        <p className="text-sm text-blue-600">
+                          📋 The first image will be automatically analyzed by AI to generate all product details (title, description, price, category, SKU).
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
