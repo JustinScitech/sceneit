@@ -47,9 +47,9 @@ export function getLocalProductByHandle(handle: string): Product | null {
   try {
     const localProducts = getAllLocalProducts();
     
-    // Find product by matching the generated handle
+    // Find product by matching the generated handle (using same logic as product creation)
     const vendorProduct = localProducts.find(product => {
-      const productHandle = product.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const productHandle = product.handle || product.title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
       return productHandle === handle;
     });
     

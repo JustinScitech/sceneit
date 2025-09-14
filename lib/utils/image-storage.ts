@@ -40,9 +40,30 @@ export const imageStorage = {
           const updatedImages = [...existingImages, storedImage];
           
           // Store updated images
-          localStorage.setItem(IMAGE_STORAGE_KEY, JSON.stringify(updatedImages));
-          
-          resolve(storedImage);
+          try {
+            localStorage.setItem(IMAGE_STORAGE_KEY, JSON.stringify(updatedImages));
+            resolve(storedImage);
+          } catch (storageError) {
+            // Handle localStorage quota exceeded error
+            console.warn('localStorage quota exceeded, attempting cleanup...');
+            
+            // Try to clear some old images and retry
+            const sortedImages = existingImages.sort((a, b) => 
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+            
+            // Remove oldest 50% of images
+            const keepImages = sortedImages.slice(Math.floor(sortedImages.length / 2));
+            const updatedImagesAfterCleanup = [...keepImages, storedImage];
+            
+            try {
+              localStorage.setItem(IMAGE_STORAGE_KEY, JSON.stringify(updatedImagesAfterCleanup));
+              console.log(`Cleaned up ${sortedImages.length - keepImages.length} old images`);
+              resolve(storedImage);
+            } catch (retryError) {
+              reject(new Error('Failed to store image: localStorage quota exceeded'));
+            }
+          }
         } catch (error) {
           reject(new Error('Failed to store image'));
         }

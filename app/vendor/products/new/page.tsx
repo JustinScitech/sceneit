@@ -78,7 +78,12 @@ export default function NewProduct() {
           }))
           toast.success("AI analysis complete! Product details generated.")
         } else {
-          toast.error("Failed to analyze image. Please try again.")
+          const errorData = await response.json().catch(() => ({}));
+          if (response.status === 503) {
+            toast.warning("AI image analysis is not configured. Please fill in product details manually.");
+          } else {
+            toast.error("Failed to analyze image. Please try again.");
+          }
         }
       }
       reader.readAsDataURL(imageFile)
@@ -150,7 +155,7 @@ export default function NewProduct() {
         throw new Error(result.error || result.details || `API returned ${response.status}`)
       }
       
-      toast.success(`3D model saved to public/3D/${result.filename}`)
+      toast.success(`3D model extracted to public/3D/${result.productDir}/`)
       return true
     } catch (error) {
       console.error('Error generating 3D model:', error)
@@ -193,13 +198,22 @@ export default function NewProduct() {
 
     try {
       // Store images locally first
-      const storedImages = await imageStorage.storeMultipleImages(imageFiles)
+      let storedImages;
+      try {
+        storedImages = await imageStorage.storeMultipleImages(imageFiles)
+      } catch (imageError) {
+        console.error('Image storage error:', imageError);
+        toast.error("Failed to store images. Try using smaller images (< 2MB each) or clear browser storage.");
+        return;
+      }
       const imageDataUrls = storedImages.map(img => img.data)
       
       // Create product data structure
+      const handle = formData.title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
       const productData = {
         vendorId: "1", // Mock vendor ID - replace with actual vendor ID
         title: formData.title.trim(),
+        handle: handle,
         description: formData.description.trim(),
         price: parseFloat(formData.price),
         images: imageDataUrls, // Use the stored image data URLs

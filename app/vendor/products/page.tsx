@@ -141,9 +141,11 @@ export default function VendorProducts() {
                     <span>Stock: {product.inventory}</span>
                   </div>
                   <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" className="flex-1 bg-transparent">
-                      <Eye className="mr-2 h-4 w-4" />
-                      View
+                    <Button variant="outline" size="sm" className="flex-1 bg-transparent" asChild>
+                      <Link href={`/product/${product.handle || product.title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-')}`}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View
+                      </Link>
                     </Button>
                     <Button variant="outline" size="sm" className="flex-1 bg-transparent">
                       <Edit className="mr-2 h-4 w-4" />
