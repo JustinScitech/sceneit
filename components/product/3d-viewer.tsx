@@ -668,7 +668,8 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
           productContext={{
             name: product.title,
             price: product.priceRange.maxVariantPrice.amount + ' ' + product.priceRange.maxVariantPrice.currencyCode,
-            description: product.description
+            description: product.description,
+            detailedDescription: "The Verde Lounge Chair is a bold blend of sculptural form and deep comfort. Upholstered in rich olive green leather, its fluid silhouette features curved armrests and a wide seat that invites you to sink in. A matte black wooden frame adds structure and contrast, making it a refined statement piece for modern living rooms, reading corners, or offices. Dimensions: 82 cm height × 90 cm width × 86 cm depth. Materials: Genuine leather upholstery, solid wood frame. Finish: Olive green seat with matte black legs. Comfort: Generously padded with ergonomic support. Weight Capacity: Up to 150 kg (330 lbs). Assembly: Arrives fully assembled. Elegant and enveloping — the Verde chair transforms any space into a luxurious retreat."
           }}
         />
         
