@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
-import AdmZip from 'adm-zip'
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,25 +25,16 @@ export async function POST(request: NextRequest) {
     // Create FormData for the external API call using Node.js compatible approach
     const apiFormData = new FormData()
     const blob = new Blob([imageBuffer], { type: imageFile.type || 'image/jpeg' })
-    apiFormData.append('file', blob, imageFile.name || 'image.jpg')
+    apiFormData.append('image', blob, imageFile.name || 'image.jpg')
     
-    console.log('Calling external 3D conversion API...')
+    console.log('Calling TripoSG + MV-Adapter GLB generation API...')
     
-    // Add query parameters for the new API (using faster, lower resolution settings)
-    const params = new URLSearchParams({
-      compress: 'true',
-      compression: 'zip',
-      bake_texture: 'true',
-      texture_resolution: '1024', // Reduced from 2048 for faster processing
-      mc_resolution: '256'        // Reduced from 512 for faster processing
-    })
-    
-    // Call the updated 3D conversion API with timeout
-    const response = await fetch(`http://129.158.241.97:8000/convert?${params}`, {
+    // Call the new GLB generation API (no query parameters needed)
+    const response = await fetch(`http://129.158.241.97:8000/generate-glb`, {
       method: 'POST',
       body: apiFormData,
-      // Add timeout to prevent hanging (increased for texture baking)
-      signal: AbortSignal.timeout(1800000) // 30 minute timeout (1800 seconds like the script)
+      // Add timeout to prevent hanging
+      signal: AbortSignal.timeout(1800000) // 30 minute timeout
     })
     
     console.log(`External API response status: ${response.status}`)
@@ -55,62 +45,33 @@ export async function POST(request: NextRequest) {
       throw new Error(`External API returned ${response.status}: ${response.statusText}`)
     }
     
-    // Get the ZIP file as a buffer
-    const zipBuffer = await response.arrayBuffer()
-    console.log(`Received ZIP file, size: ${zipBuffer.byteLength} bytes`)
+    // Get the GLB file as a buffer
+    const glbBuffer = await response.arrayBuffer()
+    console.log(`Received GLB file, size: ${glbBuffer.byteLength} bytes`)
     
-    // Create directory name from product title
+    // Create filename from product title
     const sanitizedTitle = productTitle.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
+    const filename = `${sanitizedTitle}.glb`
     
-    // Create directories for the product
+    // Save to public/3D directory
     const publicDir = path.join(process.cwd(), 'public', '3D')
-    const productDir = path.join(publicDir, sanitizedTitle)
+    const filePath = path.join(publicDir, filename)
     
-    // Ensure directories exist
+    // Ensure directory exists
     await mkdir(publicDir, { recursive: true })
-    await mkdir(productDir, { recursive: true })
     
-    console.log(`Extracting ZIP to: ${productDir}`)
+    console.log(`Saving GLB file to: ${filePath}`)
     
-    // Extract ZIP file using adm-zip
-    const zip = new AdmZip(Buffer.from(zipBuffer))
-    const zipEntries = zip.getEntries()
+    // Write the GLB file
+    await writeFile(filePath, Buffer.from(glbBuffer))
     
-    let objFile = ''
-    let mtlFile = ''
-    let textureFile = ''
-    
-    // Extract each file from the ZIP
-    for (const entry of zipEntries) {
-      const entryPath = path.join(productDir, entry.entryName)
-      const entryContent = entry.getData()
-      
-      console.log(`Extracting: ${entry.entryName} (${entryContent.length} bytes)`)
-      await writeFile(entryPath, entryContent)
-      
-      // Keep track of important files
-      if (entry.entryName.endsWith('.obj')) {
-        objFile = entry.entryName
-      } else if (entry.entryName.endsWith('.mtl')) {
-        mtlFile = entry.entryName
-      } else if (entry.entryName.endsWith('.png')) {
-        textureFile = entry.entryName
-      }
-    }
-    
-    console.log(`Successfully extracted 3D model files to: ${sanitizedTitle}/`)
-    console.log(`Files: OBJ=${objFile}, MTL=${mtlFile}, Texture=${textureFile}`)
+    console.log(`Successfully saved 3D model: ${filename}`)
     
     return NextResponse.json({ 
       success: true, 
-      productDir: sanitizedTitle,
-      files: {
-        obj: objFile,
-        mtl: mtlFile,
-        texture: textureFile
-      },
-      path: `/3D/${sanitizedTitle}/`,
-      message: `3D model extracted to ${sanitizedTitle}/` 
+      filename,
+      path: `/3D/${filename}`,
+      message: `3D model saved as ${filename}` 
     })
     
   } catch (error) {

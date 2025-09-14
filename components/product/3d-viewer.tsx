@@ -6,8 +6,6 @@ import { cn } from '@/lib/utils';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
-import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import { useWebSocket } from '@/lib/hooks/use-websocket';
 import { use3DControls } from '@/lib/hooks/use-3d-controls';
 import { VapiChat } from '@/components/vapi/vapi-chat';
@@ -34,9 +32,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
     renderer: THREE.WebGLRenderer;
     controls: OrbitControls;
     currentModel: THREE.Object3D | null;
-    gltfLoader: GLTFLoader;
-    objLoader: OBJLoader;
-    mtlLoader: MTLLoader;
+    loader: GLTFLoader;
     animationId: number | null;
   } | null>(null);
   
@@ -83,19 +79,19 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
     reconnectInterval: 2000   // Wait 2 seconds between attempts
   });
 
-  // Determine which OBJ model to load based on product type
+  // Determine which GLB model to load based on product type
   const getProductModelPath = useCallback(async (productTitle: string): Promise<string | null> => {
     const title = productTitle.toLowerCase();
     const sanitizedTitle = title.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
     
     try {
-      // Check if there's a specific directory for this product
-      const productDirPath = `/3D/${sanitizedTitle}/`;
-      const testResponse = await fetch(`${productDirPath}mesh.obj`, { method: 'HEAD' });
+      // Check if there's a specific GLB file for this product
+      const productGlbPath = `/3D/${sanitizedTitle}.glb`;
+      const testResponse = await fetch(productGlbPath, { method: 'HEAD' });
       
       if (testResponse.ok) {
-        console.log(`Found specific OBJ model for "${title}": ${productDirPath}`);
-        return productDirPath;
+        console.log(`Found specific GLB model for "${title}": ${productGlbPath}`);
+        return productGlbPath;
       }
       
       // Fallback: Fetch all available GLB files from the API for compatibility
@@ -232,10 +228,8 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
     controls.enableZoom = true;
     controls.enablePan = true;
 
-    // Create loaders
-    const gltfLoader = new GLTFLoader();
-    const objLoader = new OBJLoader();
-    const mtlLoader = new MTLLoader();
+    // Create loader
+    const loader = new GLTFLoader();
 
     sceneRef.current = {
       scene,
@@ -243,9 +237,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
       renderer,
       controls,
       currentModel: null, // Will be set when model loads
-      gltfLoader,
-      objLoader,
-      mtlLoader,
+      loader,
       animationId: null
     };
 
@@ -262,15 +254,9 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
       console.log(`Model path determined: ${modelPath}`);
       
       if (modelPath) {
-        if (modelPath.endsWith('/')) {
-          // It's an OBJ directory
-          console.log('Loading OBJ model from directory:', modelPath);
-          loadOBJModel(modelPath);
-        } else {
-          // It's a GLB file
-          console.log('Loading GLB model:', modelPath);
-          loadProductModel(modelPath);
-        }
+        // It's a GLB file
+        console.log('Loading GLB model:', modelPath);
+        loadProductModel(modelPath);
       } else {
         // No model found, show default cube
         console.log('No specific model found, showing default cube');
@@ -356,125 +342,6 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
     animate();
   };
 
-  // Load OBJ model with MTL and texture from directory
-  const loadOBJModel = async (modelDirPath: string) => {
-    if (!sceneRef.current) return;
-
-    setIsLoading(true);
-    setModelInfo(null);
-
-    const { scene, objLoader, mtlLoader, currentModel } = sceneRef.current;
-
-    try {
-      // Remove current model first
-      if (currentModel) {
-        scene.remove(currentModel);
-        // Dispose of geometry and materials to free memory
-        currentModel.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) {
-              if (Array.isArray(child.material)) {
-                child.material.forEach(material => material.dispose());
-              } else {
-                child.material.dispose();
-              }
-            }
-          }
-        });
-      }
-
-      console.log(`Loading OBJ model from: ${modelDirPath}`);
-      
-      // Set the resource path for MTL loader to resolve texture paths correctly
-      const resourcePath = modelDirPath;
-      mtlLoader.setResourcePath(resourcePath);
-      
-      // Load MTL file first
-      const mtlPath = `${modelDirPath}mesh.mtl`;
-      console.log(`Loading MTL from: ${mtlPath}`);
-      
-      const materials = await new Promise<THREE.MTLLoader.MaterialCreator>((resolve, reject) => {
-        mtlLoader.load(
-          mtlPath,
-          (materials) => {
-            console.log('MTL loaded successfully, preloading materials...');
-            materials.preload();
-            resolve(materials);
-          },
-          (progress) => {
-            console.log('MTL loading progress:', (progress.loaded / progress.total * 100) + '%');
-          },
-          (error) => {
-            console.error('MTL loading error:', error);
-            reject(error);
-          }
-        );
-      });
-
-      // Apply materials to OBJ loader
-      objLoader.setMaterials(materials);
-      console.log('Materials applied to OBJ loader');
-
-      // Load OBJ file
-      const objPath = `${modelDirPath}mesh.obj`;
-      console.log(`Loading OBJ from: ${objPath}`);
-      
-      const model = await new Promise<THREE.Group>((resolve, reject) => {
-        objLoader.load(
-          objPath,
-          (object) => {
-            console.log('OBJ loaded successfully:', object);
-            console.log('Object children count:', object.children.length);
-            object.children.forEach((child, index) => {
-              console.log(`Child ${index}:`, child.type, child);
-            });
-            resolve(object);
-          },
-          (progress) => {
-            console.log('OBJ loading progress:', (progress.loaded / progress.total * 100) + '%');
-          },
-          (error) => {
-            console.error('OBJ loading error:', error);
-            reject(error);
-          }
-        );
-      });
-
-      // Center and scale the model
-      centerAndScaleModel(model);
-      
-      // Enable shadows
-      model.traverse((node: THREE.Object3D) => {
-        if (node instanceof THREE.Mesh) {
-          node.castShadow = true;
-          node.receiveShadow = true;
-        }
-      });
-      
-      scene.add(model);
-      sceneRef.current.currentModel = model;
-      
-      // Update camera to fit model
-      fitCameraToModel(model);
-
-      // Calculate model info for OBJ
-      const info = calculateOBJModelInfo(model);
-      setModelInfo(info);
-
-      setSelectedFile(`Product model: ${modelDirPath}mesh.obj`);
-      console.log('OBJ model loaded successfully:', objPath);
-      
-    } catch (error) {
-      console.error('Error loading OBJ model:', error);
-      
-      // If loading failed, fall back to default cube
-      const defaultModel = addDefaultCube(sceneRef.current.scene);
-      sceneRef.current.currentModel = defaultModel;
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Load GLB model from public folder
   const loadProductModel = async (modelPath: string) => {
@@ -483,7 +350,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
     setIsLoading(true);
     setModelInfo(null);
 
-    const { scene, gltfLoader, currentModel } = sceneRef.current;
+    const { scene, loader, currentModel } = sceneRef.current;
 
     try {
       // Remove current model first
@@ -506,7 +373,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
 
       // Load new model from public folder
       const gltf = await new Promise<any>((resolve, reject) => {
-        gltfLoader.load(
+        loader.load(
           modelPath,
           (gltf) => resolve(gltf),
           (progress) => {
@@ -561,7 +428,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
     setIsLoading(true);
     setModelInfo(null);
 
-    const { scene, gltfLoader, currentModel } = sceneRef.current;
+    const { scene, loader, currentModel } = sceneRef.current;
     const url = URL.createObjectURL(file);
 
     try {
@@ -585,7 +452,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
 
       // Load new model using the same pattern as main.js
       const gltf = await new Promise<any>((resolve, reject) => {
-        gltfLoader.load(
+        loader.load(
           url,
           (gltf) => resolve(gltf),
           (progress) => {
@@ -696,26 +563,6 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
     };
   };
 
-  const calculateOBJModelInfo = (object: THREE.Group): ModelInfo => {
-    let meshCount = 0;
-    let materialCount = 0;
-    let textureCount = 0;
-
-    object.traverse((node: any) => {
-      if (node.isMesh) meshCount++;
-      if (node.material) {
-        materialCount++;
-        if (node.material.map) textureCount++;
-      }
-    });
-
-    return {
-      meshes: meshCount,
-      materials: materialCount,
-      textures: textureCount,
-      animations: 0 // OBJ files don't contain animations
-    };
-  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -764,13 +611,13 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
   const validateAndLoadFile = (file: File) => {
     console.log('File dropped/selected:', file.name, file.type, file.size);
     
-    // Validate file type (supporting both GLB/GLTF and OBJ files)
+    // Validate file type (GLB/GLTF files only)
     const validTypes = ['model/gltf+json', 'model/gltf-binary', 'application/octet-stream'];
-    const validExtensions = ['.glb', '.gltf', '.obj'];
+    const validExtensions = ['.glb', '.gltf'];
     const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
     
     if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
-      alert('Please select a valid 3D model file (.glb, .gltf, or .obj)');
+      alert('Please select a valid 3D model file (.glb or .gltf)');
       return;
     }
 
@@ -876,7 +723,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
         <input
           id="file-input"
           type="file"
-          accept=".glb,.gltf,.obj"
+          accept=".glb,.gltf"
           onChange={handleFileUpload}
           className="hidden"
         />
@@ -900,7 +747,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
               ? `${selectedFile}` 
               : isDragOver 
                 ? 'Drop your 3D model here!' 
-                : 'Drop custom GLB/GLTF/OBJ file here or click to upload'
+                : 'Drop custom GLB/GLTF file here or click to upload'
             }
           </p>
           <p className="text-xs text-gray-500 mt-1">

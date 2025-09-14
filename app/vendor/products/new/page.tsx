@@ -155,7 +155,7 @@ export default function NewProduct() {
         throw new Error(result.error || result.details || `API returned ${response.status}`)
       }
       
-      toast.success(`3D model extracted to public/3D/${result.productDir}/`)
+      toast.success(`3D model saved as ${result.filename}`)
       return true
     } catch (error) {
       console.error('Error generating 3D model:', error)

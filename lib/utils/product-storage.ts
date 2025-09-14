@@ -47,6 +47,28 @@ export const productStorage = {
       return newProduct;
     } catch (error) {
       console.error('Error saving product to localStorage:', error);
+      
+      // If quota exceeded, try to clean up and retry
+      if (error instanceof Error && error.name === 'QuotaExceededError') {
+        console.warn('localStorage quota exceeded for products, attempting cleanup...');
+        
+        // Remove oldest 50% of products
+        const sortedProducts = products.sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        const keepProducts = sortedProducts.slice(Math.floor(sortedProducts.length / 2));
+        const cleanedProducts = [...keepProducts, newProduct];
+        
+        try {
+          localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(cleanedProducts));
+          console.log(`Cleaned up ${sortedProducts.length - keepProducts.length} old products`);
+          return newProduct;
+        } catch (retryError) {
+          console.error('Even after cleanup, product storage failed:', retryError);
+          throw new Error('Failed to save product: localStorage quota exceeded even after cleanup');
+        }
+      }
+      
       throw new Error('Failed to save product');
     }
   },
