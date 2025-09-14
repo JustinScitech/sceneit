@@ -19,10 +19,13 @@ interface VapiChatProps {
     name: string;
     price: string;
     description?: string;
+    detailedDescription?: string;
   };
 }
 
 export function VapiChat({ className, productContext }: VapiChatProps) {
+  console.log('VAPI-CHAT: Component rendered with productContext:', productContext);
+  
   const vapiInstanceRef = useRef<any>(null);
   const [isCallActive, setIsCallActive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -178,18 +181,43 @@ export function VapiChat({ className, productContext }: VapiChatProps) {
   }, [productContext]);
 
   const startCall = async () => {
-    if (!vapiInstanceRef.current || !assistantId) return;
+    if (!vapiInstanceRef.current) return;
+    
+    console.log('VAPI-CHAT: Starting call with product context:', productContext);
     
     setIsLoading(true);
     setCallStatus('connecting');
     
     try {
-      // Pass the assistant ID when starting the call
-      await vapiInstanceRef.current.start(assistantId);
+      // Only use server-side assistant creation - no fallback
+      if (!productContext) {
+        throw new Error('Product context is required for assistant creation');
+      }
+
+      console.log('VAPI-CHAT: Creating server-side assistant with product context:', productContext.name);
+      
+      const response = await fetch('/api/vapi/create-assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ productContext }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Failed to create assistant: ${errorData.error}`);
+      }
+
+      const { assistantId: createdAssistantId } = await response.json();
+      console.log('VAPI-CHAT: Created assistant with ID:', createdAssistantId);
+      
+      await vapiInstanceRef.current.start(createdAssistantId);
     } catch (error) {
       console.error('Failed to start VAPI call:', error);
       setIsLoading(false);
       setCallStatus('idle');
+      throw error; // Re-throw to surface the error to the caller
     }
   };
 
