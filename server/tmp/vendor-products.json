@@ -1,0 +1,16 @@
+[{
+    "id": "product_1726243200000_abc123def",
+    "vendorId": "vendor_test",
+    "title": "Rivian R1S Electric SUV",
+    "description": "The Rivian R1S is an all-electric SUV designed for adventure with exceptional range and capability.",
+    "price": 75000,
+    "compareAtPrice": 80000,
+    "images": ["/placeholder.jpg"],
+    "category": "Automotive",
+    "tags": ["electric", "suv", "adventure", "rivian"],
+    "inventory": 5,
+    "sku": "RIV-R1S-001",
+    "isActive": true,
+    "createdAt": "2024-09-13T12:00:00.000Z",
+    "updatedAt": "2024-09-13T12:00:00.000Z"
+}]

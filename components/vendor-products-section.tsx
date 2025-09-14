@@ -5,62 +5,62 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Star, ShoppingCart } from "lucide-react"
 import Link from "next/link"
+import { useState, useEffect } from "react"
 import type { VendorProduct } from "@/lib/types/vendor"
+import { productStorage } from "@/lib/utils/product-storage"
 
 // Mock vendor products - replace with real API calls
 const mockVendorProducts: (VendorProduct & { vendorName: string; rating: number })[] = [
   {
     id: "1",
     vendorId: "1",
-    vendorName: "Tech Gadgets Pro",
-    title: "Wireless Bluetooth Headphones",
-    description: "High-quality wireless headphones with noise cancellation",
-    price: 299.99,
-    compareAtPrice: 399.99,
-    images: ["/diverse-people-listening-headphones.png"],
+    vendorName: "SceneIt Demo",
+    title: "Voice AI Shopping Experience",
+    description: "Experience the future of shopping! Our voice AI agent will guide you through this product in 3D, showing different angles and environments. Just say 'Show me more' to get started.",
+    price: 0.00,
+    images: ["/modern-smartwatch.png"],
     category: "Electronics",
-    tags: ["wireless", "bluetooth", "headphones"],
-    inventory: 25,
-    sku: "WBH-001",
+    tags: ["voice-ai", "3d", "demo"],
+    inventory: 999,
+    sku: "VOICE-AI-001",
     isActive: true,
     createdAt: "2024-01-15T10:00:00Z",
     updatedAt: "2024-01-15T10:00:00Z",
-    rating: 4.8,
+    rating: 5.0,
   },
   {
     id: "2",
     vendorId: "2",
-    vendorName: "Artisan Handmade Crafts",
-    title: "Handcrafted Ceramic Vase",
-    description: "Beautiful handmade ceramic vase perfect for home decoration",
-    price: 89.99,
-    images: ["/ceramic-vase.jpg"],
-    category: "Home & Garden",
-    tags: ["handmade", "ceramic", "vase"],
-    inventory: 8,
-    sku: "HCV-002",
+    vendorName: "3D Marketplace",
+    title: "Interactive Product Tour",
+    description: "Talk to our AI agent and explore products like never before. Ask questions, request different views, and get personalized recommendations through voice interaction.",
+    price: 0.00,
+    images: ["/diverse-people-listening-headphones.png"],
+    category: "Electronics", 
+    tags: ["interactive", "voice", "3d-tour"],
+    inventory: 999,
+    sku: "VOICE-AI-002",
     isActive: true,
     createdAt: "2024-01-10T10:00:00Z",
     updatedAt: "2024-01-10T10:00:00Z",
-    rating: 4.9,
+    rating: 5.0,
   },
   {
     id: "3",
     vendorId: "3",
-    vendorName: "Adventure Outdoor Gear",
-    title: "Professional Hiking Backpack",
-    description: "Durable 40L hiking backpack with multiple compartments",
-    price: 159.99,
-    compareAtPrice: 199.99,
-    images: ["/hiking-backpack.jpg"],
-    category: "Sports & Outdoors",
-    tags: ["hiking", "backpack", "outdoor"],
-    inventory: 15,
-    sku: "PHB-003",
+    vendorName: "AI Shopping Assistant",
+    title: "Try Voice Commerce",
+    description: "Step into the next generation of e-commerce. Our voice AI will showcase products with dynamic camera movements and help you make informed purchase decisions.",
+    price: 0.00,
+    images: ["/ceramic-vase.jpg"],
+    category: "Home & Garden",
+    tags: ["ai-assistant", "voice-commerce", "demo"],
+    inventory: 999,
+    sku: "VOICE-AI-003",
     isActive: true,
     createdAt: "2024-01-05T10:00:00Z",
     updatedAt: "2024-01-05T10:00:00Z",
-    rating: 4.7,
+    rating: 5.0,
   },
 ]
 
@@ -75,7 +75,74 @@ export function VendorProductsSection({
   showVendorName = true,
   limit,
 }: VendorProductsSectionProps) {
-  const products = limit ? mockVendorProducts.slice(0, limit) : mockVendorProducts
+  const [products, setProducts] = useState<(VendorProduct & { vendorName: string; rating: number })[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const loadProducts = () => {
+      try {
+        // Get locally stored products
+        const localProducts = productStorage.getAllProducts()
+        
+        // Convert local products to include vendor name and rating
+        const localProductsWithMeta = localProducts
+          .filter(product => product.isActive)
+          .map(product => ({
+            ...product,
+            vendorName: "Local Creator", // Default vendor name for local products
+            rating: Math.floor(4.5 + Math.random() * 0.5), // Random rating between 4.5-5.0
+          }))
+
+        // Combine with mock products
+        const allProducts = [...localProductsWithMeta, ...mockVendorProducts]
+        
+        // Apply limit if specified
+        const finalProducts = limit ? allProducts.slice(0, limit) : allProducts
+        
+        setProducts(finalProducts)
+      } catch (error) {
+        console.error('Error loading products:', error)
+        // Fallback to mock products only
+        const finalProducts = limit ? mockVendorProducts.slice(0, limit) : mockVendorProducts
+        setProducts(finalProducts)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadProducts()
+  }, [limit])
+
+  if (isLoading) {
+    return (
+      <section className="py-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold">{title}</h2>
+            <Button variant="outline" asChild>
+              <Link href="/vendors">View All Vendors</Link>
+            </Button>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: limit || 3 }).map((_, index) => (
+              <Card key={index} className="overflow-hidden animate-pulse">
+                <div className="aspect-square bg-muted"></div>
+                <CardHeader className="pb-3">
+                  <div className="h-4 bg-muted rounded mb-2"></div>
+                  <div className="h-6 bg-muted rounded mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-24"></div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="h-4 bg-muted rounded mb-4"></div>
+                  <div className="h-8 bg-muted rounded"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="py-12">

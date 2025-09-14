@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Product, Collection } from '@/lib/shopify/types';
 import { ProductCard } from './product-card';
 import ResultsControls from './results-controls';
@@ -8,6 +8,7 @@ import { useProducts } from '../providers/products-provider';
 import { useQueryState, parseAsArrayOf, parseAsString } from 'nuqs';
 import { ProductGrid } from './product-grid';
 import { Card } from '../../../components/ui/card';
+import { LocalProductsLoader } from './local-products-loader';
 
 interface ProductListContentProps {
   products: Product[];
@@ -73,26 +74,42 @@ function filterProductsByColors(products: Product[], colors: string[]): Product[
 
 export function ProductListContent({ products, collections }: ProductListContentProps) {
   const { setProducts, setOriginalProducts } = useProducts();
+  const [localProducts, setLocalProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>(products);
 
   // Get current color filters from URL
   const [colorFilters] = useQueryState('fcolor', parseAsArrayOf(parseAsString).withDefault([]));
+  const [query] = useQueryState('q', parseAsString.withDefault(''));
+
+  // Callback to handle loaded local products
+  const handleLocalProductsLoaded = useCallback((loadedLocalProducts: Product[]) => {
+    setLocalProducts(loadedLocalProducts);
+  }, []);
+
+  // Combine Shopify and local products whenever either changes
+  useEffect(() => {
+    const combined = [...localProducts, ...products];
+    setAllProducts(combined);
+  }, [products, localProducts]);
 
   // Apply client-side filtering whenever products or color filters change
   const filteredProducts = useMemo(() => {
     if (!colorFilters || colorFilters.length === 0) {
-      return products;
+      return allProducts;
     }
-    return filterProductsByColors(products, colorFilters);
-  }, [products, colorFilters]);
+    return filterProductsByColors(allProducts, colorFilters);
+  }, [allProducts, colorFilters]);
 
   // Set both original and filtered products in the provider whenever they change
   useEffect(() => {
-    setOriginalProducts(products);
+    setOriginalProducts(allProducts);
     setProducts(filteredProducts);
-  }, [products, filteredProducts, setProducts, setOriginalProducts]);
+  }, [allProducts, filteredProducts, setProducts, setOriginalProducts]);
 
   return (
     <>
+      <LocalProductsLoader onProductsLoaded={handleLocalProductsLoaded} query={query} />
+      
       <ResultsControls className="max-md:hidden" collections={collections} products={filteredProducts} />
 
       {filteredProducts.length > 0 ? (

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { getCollection, getProduct, getProducts } from '@/lib/shopify';
+import { getAllLocalProductsAsShopify } from '@/lib/utils/server-product-utils';
 import { HIDDEN_PRODUCT_TAG } from '@/lib/constants';
 import {
   Breadcrumb,
@@ -26,14 +27,29 @@ import { Mobile3DViewer, Desktop3DViewer } from '@/components/product/3d-viewer'
 // Generate static params for all products at build time
 export async function generateStaticParams() {
   try {
-    const products = await getProducts({ limit: 100 }); // Get first 100 products
+    // Get both Shopify products and local products
+    const [shopifyProducts, localProducts] = await Promise.all([
+      getProducts({ limit: 100 }), // Get first 100 Shopify products
+      getAllLocalProductsAsShopify() // Get all local products
+    ]);
 
-    return products.map(product => ({
-      handle: product.handle,
-    }));
+    // Combine handles from both sources
+    const allHandles = [
+      ...shopifyProducts.map(product => ({ handle: product.handle })),
+      ...localProducts.map(product => ({ handle: product.handle }))
+    ];
+
+    return allHandles;
   } catch (error) {
     console.error('Error generating static params for products:', error);
-    return [];
+    // Fallback to just Shopify products if local products fail
+    try {
+      const products = await getProducts({ limit: 100 });
+      return products.map(product => ({ handle: product.handle }));
+    } catch (fallbackError) {
+      console.error('Error in fallback static params generation:', fallbackError);
+      return [];
+    }
   }
 }
 

@@ -8,47 +8,47 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Plus, Search, Edit, Trash2, Eye, Package } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { VendorProduct } from "@/lib/types/vendor"
-
-// Mock data - replace with real API calls
-const mockProducts: VendorProduct[] = [
-  {
-    id: "1",
-    vendorId: "1",
-    title: "Wireless Bluetooth Headphones",
-    description: "High-quality wireless headphones with noise cancellation",
-    price: 299.99,
-    compareAtPrice: 399.99,
-    images: ["/diverse-people-listening-headphones.png"],
-    category: "Electronics",
-    tags: ["wireless", "bluetooth", "headphones"],
-    inventory: 25,
-    sku: "WBH-001",
-    isActive: true,
-    createdAt: "2024-01-15T10:00:00Z",
-    updatedAt: "2024-01-15T10:00:00Z",
-  },
-  {
-    id: "2",
-    vendorId: "1",
-    title: "Smart Fitness Watch",
-    description: "Track your fitness goals with this advanced smartwatch",
-    price: 199.99,
-    images: ["/modern-smartwatch.png"],
-    category: "Electronics",
-    tags: ["fitness", "smartwatch", "health"],
-    inventory: 15,
-    sku: "SFW-002",
-    isActive: false,
-    createdAt: "2024-01-10T10:00:00Z",
-    updatedAt: "2024-01-10T10:00:00Z",
-  },
-]
+import { productStorage } from "@/lib/utils/product-storage"
+import { toast } from "sonner"
 
 export default function VendorProducts() {
-  const [products] = useState<VendorProduct[]>(mockProducts)
+  const [products, setProducts] = useState<VendorProduct[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Load products from localStorage on component mount
+  useEffect(() => {
+    const loadProducts = () => {
+      try {
+        const savedProducts = productStorage.getAllProducts()
+        
+        // Show only saved products (removed mock products)
+        const allProducts = savedProducts
+        setProducts(allProducts)
+      } catch (error) {
+        console.error('Error loading products:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadProducts()
+  }, [])
+
+  const handleDeleteProduct = (productId: string) => {
+    try {
+      const success = productStorage.deleteProduct(productId)
+      if (success) {
+        setProducts(prev => prev.filter(p => p.id !== productId))
+        toast.success("Product deleted successfully")
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      toast.error("Failed to delete product")
+    }
+  }
 
   const filteredProducts = products.filter(
     (product) =>
@@ -87,7 +87,28 @@ export default function VendorProducts() {
           </div>
 
           {/* Products Grid */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {isLoading ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="overflow-hidden animate-pulse">
+                  <div className="aspect-square bg-muted"></div>
+                  <CardHeader className="pb-3">
+                    <div className="h-6 bg-muted rounded mb-2"></div>
+                    <div className="h-4 bg-muted rounded w-24"></div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="h-4 bg-muted rounded mb-4"></div>
+                    <div className="flex space-x-2">
+                      <div className="h-8 bg-muted rounded flex-1"></div>
+                      <div className="h-8 bg-muted rounded flex-1"></div>
+                      <div className="h-8 bg-muted rounded w-8"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredProducts.map((product) => (
               <Card key={product.id} className="overflow-hidden">
                 <div className="aspect-square relative">
@@ -132,6 +153,8 @@ export default function VendorProducts() {
                       variant="outline"
                       size="sm"
                       className="text-destructive hover:text-destructive bg-transparent"
+                      onClick={() => handleDeleteProduct(product.id)}
+                      disabled={product.id.startsWith('mock-')}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -140,8 +163,9 @@ export default function VendorProducts() {
               </Card>
             ))}
           </div>
+          )}
 
-          {filteredProducts.length === 0 && (
+          {!isLoading && filteredProducts.length === 0 && (
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-medium">No products found</h3>
