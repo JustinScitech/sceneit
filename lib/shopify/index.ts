@@ -10,6 +10,7 @@ import {
   updateCartLines,
   removeCartLines,
 } from './shopify';
+import { getLocalProductByHandle } from '@/lib/utils/server-product-utils';
 import { thumbhashToDataURL } from './utils';
 import type {
   ShopifyProduct,
@@ -172,11 +173,25 @@ export const getCollection = unstable_cache(
 export const getProduct = unstable_cache(
   async (handle: string): Promise<Product | null> => {
     try {
+      // First try to get from Shopify
       const shopifyProduct = await getShopifyProduct(handle);
-      return shopifyProduct ? adaptShopifyProduct(shopifyProduct) : null;
+      if (shopifyProduct) {
+        return adaptShopifyProduct(shopifyProduct);
+      }
+      
+      // If not found in Shopify, try local products
+      const localProduct = getLocalProductByHandle(handle);
+      return localProduct;
     } catch (error) {
       console.error('Error fetching product:', error);
-      return null;
+      // Try local products as fallback
+      try {
+        const localProduct = getLocalProductByHandle(handle);
+        return localProduct;
+      } catch (localError) {
+        console.error('Error fetching local product:', localError);
+        return null;
+      }
     }
   },
   ['product'],

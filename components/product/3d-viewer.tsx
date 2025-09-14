@@ -38,15 +38,107 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   // Determine which GLB model to load based on product type
-  const getProductModelPath = useCallback((productTitle: string): string => {
+  const getProductModelPath = useCallback(async (productTitle: string): Promise<string> => {
     const title = productTitle.toLowerCase();
     
-    if (title.includes('lamp') || title.includes('light')) {
-      return '/3D/lamp.glb';
-    } else if (title.includes('chair') || title.includes('seat') || title.includes('stool')) {
-      return '/3D/chair.glb';
-    } else {
-      return '/3D/shoe.glb'; // Default for all other products
+    try {
+      // Fetch all available GLB files from the API
+      const response = await fetch('/api/3d-models');
+      if (!response.ok) {
+        throw new Error('Failed to fetch 3D models directory');
+      }
+      const availableModels: string[] = await response.json();
+      
+      // Function to calculate similarity between two strings
+      const calculateSimilarity = (str1: string, str2: string): number => {
+        const s1 = str1.toLowerCase();
+        const s2 = str2.toLowerCase();
+        
+        // Check for exact word matches first
+        const words1 = s1.split(/[\s_-]+/);
+        const words2 = s2.split(/[\s_-]+/);
+        
+        let exactMatches = 0;
+        for (const word1 of words1) {
+          if (word1.length > 2) { // Only consider words longer than 2 characters
+            for (const word2 of words2) {
+              if (word2.length > 2 && (word2.includes(word1) || word1.includes(word2))) {
+                exactMatches++;
+                break;
+              }
+            }
+          }
+        }
+        
+        // If we have exact word matches, prioritize those
+        if (exactMatches > 0) {
+          return exactMatches / Math.max(words1.length, words2.length);
+        }
+        
+        // Fallback to character-based similarity (Levenshtein distance)
+        const maxLength = Math.max(s1.length, s2.length);
+        if (maxLength === 0) return 1;
+        
+        const distance = levenshteinDistance(s1, s2);
+        return 1 - distance / maxLength;
+      };
+      
+      // Helper function for Levenshtein distance
+      const levenshteinDistance = (str1: string, str2: string): number => {
+        const matrix = Array(str2.length + 1).fill(null).map(() => 
+          Array(str1.length + 1).fill(null)
+        );
+        
+        for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+        for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+        
+        for (let j = 1; j <= str2.length; j++) {
+          for (let i = 1; i <= str1.length; i++) {
+            const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+            matrix[j][i] = Math.min(
+              matrix[j][i - 1] + 1,     // deletion
+              matrix[j - 1][i] + 1,     // insertion
+              matrix[j - 1][i - 1] + indicator // substitution
+            );
+          }
+        }
+        
+        return matrix[str2.length][str1.length];
+      };
+
+      // Find the best match among available models
+      let bestMatch = availableModels[0] || 'shoe.glb'; // fallback to first available or shoe.glb
+      let highestSimilarity = 0;
+      
+      for (const model of availableModels) {
+        const modelName = model.replace('.glb', '');
+        const similarity = calculateSimilarity(title, modelName);
+        
+        console.log(`Comparing "${title}" with "${modelName}": similarity = ${similarity.toFixed(3)}`);
+        
+        if (similarity > highestSimilarity) {
+          highestSimilarity = similarity;
+          bestMatch = model;
+        }
+      }
+      
+      console.log(`Best match for "${title}": ${bestMatch} (similarity: ${highestSimilarity.toFixed(3)})`);
+      
+      return `/3D/${bestMatch}`;
+      
+    } catch (error) {
+      console.error('Error fetching available models:', error);
+      // Fallback to default models if API fails
+      const fallbackModels = ['lamp.glb', 'chair.glb', 'shoe.glb'];
+      
+      // Simple fallback matching
+      if (title.includes('lamp') || title.includes('light')) {
+        return '/3D/lamp.glb';
+      } else if (title.includes('chair') || title.includes('seat') || title.includes('stool')) {
+        return '/3D/chair.glb';
+      } else {
+        return '/3D/shoe.glb';
+      }
     }
   }, []);
 
@@ -108,9 +200,12 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
     // Start animation loop
     startAnimation();
 
-    // Load the appropriate product model
-    const modelPath = getProductModelPath(product.title);
-    loadProductModel(modelPath);
+    // Load the appropriate product model asynchronously
+    const loadInitialModel = async () => {
+      const modelPath = await getProductModelPath(product.title);
+      loadProductModel(modelPath);
+    };
+    loadInitialModel();
 
     // Handle resize
     const handleResize = () => {

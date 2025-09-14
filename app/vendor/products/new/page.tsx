@@ -17,6 +17,8 @@ import Link from "next/link"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { productStorage } from "@/lib/utils/product-storage"
+import { imageStorage } from "@/lib/utils/image-storage"
 
 const categories = [
   "Electronics",
@@ -34,6 +36,7 @@ export default function NewProduct() {
   const [isLoading, setIsLoading] = useState(false)
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false)
   const [images, setImages] = useState<string[]>([])
+  const [imageFiles, setImageFiles] = useState<File[]>([]) // Store actual files
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState("")
   const [formData, setFormData] = useState({
@@ -92,9 +95,12 @@ export default function NewProduct() {
     if (files && files.length > 0) {
       const fileArray = Array.from(files)
       
-      // Create URLs for display
+      // Create URLs for immediate display
       const newImageUrls = fileArray.map((file) => URL.createObjectURL(file))
       setImages((prev) => [...prev, ...newImageUrls].slice(0, 5)) // Max 5 images
+      
+      // Store the actual files for later processing
+      setImageFiles((prev) => [...prev, ...fileArray].slice(0, 5))
       
       // If this is the first image and description is empty, analyze it
       if (images.length === 0 && !formData.description.trim()) {
@@ -104,7 +110,13 @@ export default function NewProduct() {
   }
 
   const removeImage = (index: number) => {
+    // Revoke object URL to prevent memory leaks
+    if (images[index]?.startsWith('blob:')) {
+      URL.revokeObjectURL(images[index])
+    }
+    
     setImages((prev) => prev.filter((_, i) => i !== index))
+    setImageFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const addTag = () => {
@@ -118,6 +130,36 @@ export default function NewProduct() {
     setTags((prev) => prev.filter((tag) => tag !== tagToRemove))
   }
 
+  const generateGLBModel = async (imageFile: File, productTitle: string) => {
+    try {
+      // Create FormData for the API call
+      const formData = new FormData()
+      formData.append('file', imageFile)
+      formData.append('productTitle', productTitle)
+      
+      // Call our internal API endpoint that handles the 3D conversion
+      const response = await fetch('/api/generate-3d-model', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        console.error('API Error Response:', result)
+        throw new Error(result.error || result.details || `API returned ${response.status}`)
+      }
+      
+      toast.success(`3D model saved to public/3D/${result.filename}`)
+      return true
+    } catch (error) {
+      console.error('Error generating 3D model:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      toast.error(`Failed to generate 3D model: ${errorMessage}. The product was still created successfully.`)
+      return false
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -127,15 +169,61 @@ export default function NewProduct() {
       return
     }
     
+    if (!formData.title.trim()) {
+      toast.error("Please enter a product title.")
+      return
+    }
+    
+    if (!formData.description.trim()) {
+      toast.error("Please enter a product description.")
+      return
+    }
+    
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      toast.error("Please enter a valid price.")
+      return
+    }
+    
+    if (!formData.category) {
+      toast.error("Please select a category.")
+      return
+    }
+    
     setIsLoading(true)
 
     try {
-      // Mock API call - replace with real API
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Store images locally first
+      const storedImages = await imageStorage.storeMultipleImages(imageFiles)
+      const imageDataUrls = storedImages.map(img => img.data)
+      
+      // Create product data structure
+      const productData = {
+        vendorId: "1", // Mock vendor ID - replace with actual vendor ID
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        price: parseFloat(formData.price),
+        images: imageDataUrls, // Use the stored image data URLs
+        category: formData.category,
+        tags: tags,
+        inventory: parseInt(formData.inventory) || 0,
+        sku: formData.sku.trim() || `SKU-${Date.now()}`,
+        isActive: formData.isActive,
+      };
 
-      toast.success("Product created successfully!")
+      // Save product to localStorage
+      const savedProduct = productStorage.saveProduct(productData);
+      
+      toast.success(`Product "${savedProduct.title}" created successfully!`)
+      
+      // Generate 3D model from the first uploaded image
+      if (imageFiles.length > 0) {
+        toast.info("Generating 3D model... This may take a moment.")
+        await generateGLBModel(imageFiles[0], savedProduct.title)
+      }
+      
       router.push("/vendor/products")
     } catch (error) {
+      console.error('Error creating product:', error);
       toast.error("Failed to create product. Please try again.")
     } finally {
       setIsLoading(false)
@@ -301,6 +389,9 @@ export default function NewProduct() {
                         <p className="text-sm text-blue-600">
                           📋 The first image will be automatically analyzed by AI to generate all product details (title, description, price, category, SKU).
                         </p>
+                        <p className="text-sm text-green-600">
+                          🎯 When you create the product, a 3D model (.glb file) will be automatically generated from the first image and saved to public/3D/.
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -396,7 +487,7 @@ export default function NewProduct() {
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   <Save className="mr-2 h-4 w-4" />
-                  {isLoading ? "Creating..." : "Create Product"}
+                  {isLoading ? "Creating Product & 3D Model..." : "Create Product"}
                 </Button>
               </div>
             </div>
