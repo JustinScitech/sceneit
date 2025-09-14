@@ -16,6 +16,7 @@ declare global {
 interface VapiChatProps {
   className?: string;
   productContext?: {
+    id: string;
     name: string;
     price: string;
     description?: string;

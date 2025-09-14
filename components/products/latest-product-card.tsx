@@ -1,3 +1,5 @@
+'use client';
+
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { FeaturedProductLabel } from './featured-product-label';
@@ -20,7 +22,14 @@ export function LatestProductCard({
   if (principal) {
     return (
       <div className={cn('min-h-fold flex flex-col relative', className)}>
-        <Link href={`/product/${product.handle}`} className="size-full flex-1 flex flex-col" prefetch>
+        <Link 
+          href={`/product/${product.handle}`} 
+          className="size-full flex-1 flex flex-col relative z-10" 
+          prefetch
+          onClick={(e) => {
+            console.log('Principal product clicked:', product.handle);
+          }}
+        >
           <Image
             priority
             src={product.featuredImage.url}
@@ -31,7 +40,7 @@ export function LatestProductCard({
             className="object-cover size-full flex-1"
           />
         </Link>
-        <div className="absolute bottom-0 left-0 grid w-full grid-cols-4 gap-6 pointer-events-none max-md:contents p-sides">
+        <div className="absolute bottom-0 left-0 grid w-full grid-cols-4 gap-6 pointer-events-none max-md:contents p-sides z-20">
           <FeaturedProductLabel
             className="col-span-3 col-start-2 pointer-events-auto 2xl:col-start-3 2xl:col-span-2 shrink-0"
             product={product}
@@ -44,7 +53,14 @@ export function LatestProductCard({
 
   return (
     <div className={cn('relative', className)}>
-      <Link href={`/product/${product.handle}`} className="block w-full aspect-square" prefetch>
+      <Link 
+        href={`/product/${product.handle}`} 
+        className="block w-full aspect-square" 
+        prefetch
+        onClick={(e) => {
+          console.log('Regular product clicked:', product.handle);
+        }}
+      >
         <Image
           src={product.featuredImage.url}
           alt={product.featuredImage.altText}

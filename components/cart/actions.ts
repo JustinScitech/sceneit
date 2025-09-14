@@ -1,172 +1,139 @@
 'use server';
 
-import { TAGS } from '@/lib/constants';
-import { revalidateTag } from 'next/cache';
 import { cookies } from 'next/headers';
-import {
-  createCart as createShopifyCart,
-  addCartLines,
-  updateCartLines,
-  removeCartLines,
-  getCart as getShopifyCart,
-} from '@/lib/shopify/shopify';
-import type { Cart, CartItem, ShopifyCart, ShopifyCartLine } from '@/lib/shopify/types';
+import type { Cart, CartItem } from '@/lib/shopify/types';
 
-// Local adapter utilities to return FE Cart (avoid cyclic deps)
-function adaptCartLine(shopifyLine: ShopifyCartLine): CartItem {
-  const merchandise = shopifyLine.merchandise;
-  const product = merchandise.product;
-
-  return {
-    id: shopifyLine.id,
-    quantity: shopifyLine.quantity,
-    cost: {
-      totalAmount: {
-        amount: (parseFloat(merchandise.price.amount) * shopifyLine.quantity).toString(),
-        currencyCode: merchandise.price.currencyCode,
-      },
-    },
-    merchandise: {
-      id: merchandise.id,
-      title: merchandise.title,
-      selectedOptions: merchandise.selectedOptions || [],
-      product: {
-        id: product.title,
-        title: product.title,
-        handle: product.handle,
-        categoryId: undefined,
-        description: '',
-        descriptionHtml: '',
-        featuredImage: product.images?.edges?.[0]?.node
-          ? {
-              ...product.images.edges[0].node,
-              altText: product.images.edges[0].node.altText || product.title,
-              height: 600,
-              width: 600,
-              thumbhash: product.images.edges[0].node.thumbhash || undefined,
-            }
-          : { url: '', altText: '', height: 0, width: 0 },
-        currencyCode: merchandise.price.currencyCode,
-        priceRange: {
-          minVariantPrice: merchandise.price,
-          maxVariantPrice: merchandise.price,
-        },
-        compareAtPrice: undefined,
-        seo: { title: product.title, description: '' },
-        options: [],
-        tags: [],
-        variants: [],
-        images:
-          product.images?.edges?.map((edge: any) => ({
-            ...edge.node,
-            altText: edge.node.altText || product.title,
-            height: 600,
-            width: 600,
-          })) || [],
-        availableForSale: true,
-      },
-    },
-  } satisfies CartItem;
-}
-
-function adaptCart(shopifyCart: ShopifyCart | null): Cart | null {
-  if (!shopifyCart) return null;
-
-  const lines = shopifyCart.lines?.edges?.map((edge: any) => adaptCartLine(edge.node)) || [];
-
-  return {
-    id: shopifyCart.id,
-    checkoutUrl: shopifyCart.checkoutUrl,
-    cost: {
-      subtotalAmount: shopifyCart.cost.subtotalAmount,
-      totalAmount: shopifyCart.cost.totalAmount,
-      totalTaxAmount: shopifyCart.cost.totalTaxAmount,
-    },
-    totalQuantity: lines.reduce((sum: number, line: CartItem) => sum + line.quantity, 0),
-    lines,
-  } satisfies Cart;
-}
-
-async function getOrCreateCartId(): Promise<string> {
-  let cartId = (await cookies()).get('cartId')?.value;
-  if (!cartId) {
-    const newCart = await createShopifyCart();
-    cartId = newCart.id;
-    (await cookies()).set('cartId', cartId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-    });
-  }
-  return cartId;
-}
-
-// Add item server action: returns adapted Cart
-export async function addItem(variantId: string | undefined): Promise<Cart | null> {
-  if (!variantId) return null;
+// Local cart storage using cookies
+async function getLocalCart(): Promise<Cart | null> {
   try {
-    const cartId = await getOrCreateCartId();
-    await addCartLines(cartId, [{ merchandiseId: variantId, quantity: 1 }]);
-    const fresh = await getShopifyCart(cartId);
-    revalidateTag(TAGS.cart);
-    return adaptCart(fresh);
+    const cartData = (await cookies()).get('localCart')?.value;
+    if (!cartData) return null;
+    return JSON.parse(cartData);
   } catch (error) {
-    console.error('Error adding item to cart:', error);
+    console.error('Error getting local cart:', error);
     return null;
   }
 }
 
-// Update item server action (quantity 0 removes): returns adapted Cart
-export async function updateItem({ lineId, quantity }: { lineId: string; quantity: number }): Promise<Cart | null> {
+async function saveLocalCart(cart: Cart): Promise<void> {
   try {
-    const cartId = (await cookies()).get('cartId')?.value;
-    if (!cartId) return null;
+    (await cookies()).set('localCart', JSON.stringify(cart), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
+  } catch (error) {
+    console.error('Error saving local cart:', error);
+  }
+}
 
-    if (quantity === 0) {
-      await removeCartLines(cartId, [lineId]);
-    } else {
-      await updateCartLines(cartId, [{ id: lineId, quantity }]);
+function createEmptyCart(): Cart {
+  return {
+    id: `local-cart-${Date.now()}`,
+    checkoutUrl: '',
+    cost: {
+      subtotalAmount: { amount: '0', currencyCode: 'USD' },
+      totalAmount: { amount: '0', currencyCode: 'USD' },
+      totalTaxAmount: { amount: '0', currencyCode: 'USD' },
+    },
+    totalQuantity: 0,
+    lines: [],
+  };
+}
+
+function calculateCartTotals(lines: CartItem[]): Pick<Cart, 'totalQuantity' | 'cost'> {
+  const totalQuantity = lines.reduce((sum, item) => sum + item.quantity, 0);
+  const totalAmount = lines.reduce((sum, item) => sum + Number(item.cost.totalAmount.amount), 0);
+  const currencyCode = lines[0]?.cost.totalAmount.currencyCode ?? 'USD';
+
+  return {
+    totalQuantity,
+    cost: {
+      subtotalAmount: { amount: totalAmount.toString(), currencyCode },
+      totalAmount: { amount: totalAmount.toString(), currencyCode },
+      totalTaxAmount: { amount: '0', currencyCode },
+    },
+  };
+}
+
+// Add item server action: returns local Cart
+export async function addItem(variantId: string | undefined): Promise<Cart | null> {
+  if (!variantId) return null;
+  
+  try {
+    let cart = await getLocalCart();
+    if (!cart) {
+      cart = createEmptyCart();
     }
 
-    const fresh = await getShopifyCart(cartId);
-    revalidateTag(TAGS.cart);
-    return adaptCart(fresh);
+    // This will be handled by the cart context optimistically
+    // Just return the current cart for now
+    return cart;
   } catch (error) {
-    console.error('Error updating item:', error);
+    console.error('Error adding item to local cart:', error);
+    return null;
+  }
+}
+
+// Update item server action (quantity 0 removes): returns local Cart
+export async function updateItem({ lineId, quantity }: { lineId: string; quantity: number }): Promise<Cart | null> {
+  try {
+    let cart = await getLocalCart();
+    if (!cart) return null;
+
+    const updatedLines = cart.lines
+      .map(item => {
+        if (item.id !== lineId) return item;
+        if (quantity <= 0) return null;
+
+        const singleItemAmount = Number(item.cost.totalAmount.amount) / item.quantity;
+        const newTotalAmount = (singleItemAmount * quantity).toString();
+
+        return {
+          ...item,
+          quantity,
+          cost: {
+            ...item.cost,
+            totalAmount: {
+              ...item.cost.totalAmount,
+              amount: newTotalAmount,
+            },
+          },
+        };
+      })
+      .filter(Boolean) as CartItem[];
+
+    const updatedCart = {
+      ...cart,
+      ...calculateCartTotals(updatedLines),
+      lines: updatedLines,
+    };
+
+    await saveLocalCart(updatedCart);
+    return updatedCart;
+  } catch (error) {
+    console.error('Error updating item in local cart:', error);
     return null;
   }
 }
 
 export async function createCartAndSetCookie() {
   try {
-    const newCart = await createShopifyCart();
-
-    (await cookies()).set('cartId', newCart.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
-
+    const newCart = createEmptyCart();
+    await saveLocalCart(newCart);
     return newCart;
   } catch (error) {
-    console.error('Error creating cart:', error);
+    console.error('Error creating local cart:', error);
     return null;
   }
 }
 
 export async function getCart(): Promise<Cart | null> {
-  try {
-    const cartId = (await cookies()).get('cartId')?.value;
+  return await getLocalCart();
+}
 
-    if (!cartId) {
-      return null;
-    }
-    const fresh = await getShopifyCart(cartId);
-    return adaptCart(fresh);
-  } catch (error) {
-    console.error('Error fetching cart:', error);
-    return null;
-  }
+// Helper function to save cart from context
+export async function saveCart(cart: Cart): Promise<void> {
+  await saveLocalCart(cart);
 }

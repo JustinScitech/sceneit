@@ -24,6 +24,7 @@ export interface VendorProduct {
   vendorId: string
   title: string
   description: string
+  detailedDescription?: string
   price: number
   compareAtPrice?: number
   images: string[]

@@ -1,0 +1,56 @@
+[
+  {
+    "vendorId": "1",
+    "title": "Black Leather Sneaker",
+    "description": "Elevate your style with this sleek black leather sneaker, perfect for casual wear.",
+    "detailedDescription": "This premium black leather sneaker features a sturdy sole, comfortable design, and sleek laces. The shoe's upper is made from high-quality leather, providing durability and a stylish look. The black color ensures versatility, making it easy to pair with various outfits. Key specifications include:\n• Dimensions: 10 inches (length) x 4 inches (width) x 6 inches (height)\n• Material: High-quality leather\n• Color: Black\n• Sole: Rubber\n• Lacing System: 6-eyelet lace",
+    "price": 120,
+    "images": [
+      "/uploads/img_1757840491117_a7iuw196p.webp"
+    ],
+    "category": "Clothing",
+    "tags": [],
+    "inventory": 50,
+    "sku": "BLKLEATHER01",
+    "isActive": true,
+    "id": "product_1757840491133_en5vdijmu",
+    "createdAt": "2025-09-14T09:01:31.133Z",
+    "updatedAt": "2025-09-14T09:01:31.133Z"
+  },
+  {
+    "vendorId": "1",
+    "title": "Black Leather Sneaker",
+    "description": "Elevate your style with this sleek black leather sneaker, perfect for casual outings.",
+    "detailedDescription": "This black leather sneaker features a sturdy sole and comfortable design, making it ideal for everyday wear. The sleek black leather upper with orange interior detailing adds a touch of sophistication. The shoe's lace-up closure ensures a secure fit. Key specifications include:\n• Dimensions: 10 inches (length) x 4 inches (width) x 6 inches (height)\n• Material: High-quality leather\n• Color: Black with orange interior\n• Sole: Rubber\n• Closure: Lace-up",
+    "price": 120,
+    "images": [
+      "/uploads/img_1757840553723_uzi2r3sy9.webp"
+    ],
+    "category": "Clothing",
+    "tags": [],
+    "inventory": 50,
+    "sku": "BLKLEATHER01",
+    "isActive": true,
+    "id": "product_1757840553725_8q6tl3t8l",
+    "createdAt": "2025-09-14T09:02:33.725Z",
+    "updatedAt": "2025-09-14T09:02:33.725Z"
+  },
+  {
+    "vendorId": "1",
+    "title": "Black Leather Sneaker",
+    "description": "Elevate your style with this sleek black leather sneaker",
+    "detailedDescription": "This premium black leather sneaker is designed for comfort and style. Crafted with high-quality leather, it features a sturdy sole and sleek laces. Perfect for casual wear, it can be dressed up or down. Key specifications include:\n• Dimensions: 10 inches (length) x 4 inches (width) x 6 inches (height)\n• Material: High-quality leather\n• Color: Black\n• Sole: Rubber\n• Lacing System: 6-eyelet lace",
+    "price": 120,
+    "images": [
+      "/uploads/img_1757841525246_5zigqgb8v.webp"
+    ],
+    "category": "Clothing",
+    "tags": [],
+    "inventory": 50,
+    "sku": "BLKLEATHER01",
+    "isActive": true,
+    "id": "product_1757841525259_nshyqjkwn",
+    "createdAt": "2025-09-14T09:18:45.258Z",
+    "updatedAt": "2025-09-14T09:18:45.258Z"
+  }
+]

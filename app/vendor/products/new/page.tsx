@@ -18,7 +18,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { productStorage } from "@/lib/utils/product-storage"
-import { imageStorage } from "@/lib/utils/image-storage"
+import { fileImageStorage } from "@/lib/utils/file-image-storage"
 
 const categories = [
   "Electronics",
@@ -42,6 +42,7 @@ export default function NewProduct() {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    detailedDescription: "",
     price: "",
     category: "",
     inventory: "",
@@ -71,10 +72,11 @@ export default function NewProduct() {
             ...prev, 
             title: productData.title || prev.title,
             description: productData.description || prev.description,
+            detailedDescription: productData.detailedDescription || prev.detailedDescription,
             price: productData.price || prev.price,
             category: productData.category || prev.category,
+            inventory: productData.inventory || prev.inventory,
             sku: productData.suggested_sku || prev.sku,
-            inventory: '100' // Default inventory amount
           }))
           toast.success("AI analysis complete! Product details generated.")
         } else {
@@ -192,17 +194,18 @@ export default function NewProduct() {
     setIsLoading(true)
 
     try {
-      // Store images locally first
-      const storedImages = await imageStorage.storeMultipleImages(imageFiles)
-      const imageDataUrls = storedImages.map(img => img.data)
+      // Store images using file system instead of localStorage
+      const storedImages = await fileImageStorage.storeImagesWithMetadata(imageFiles)
+      const imageUrls = storedImages.map(img => img.url)
       
       // Create product data structure
       const productData = {
         vendorId: "1", // Mock vendor ID - replace with actual vendor ID
         title: formData.title.trim(),
         description: formData.description.trim(),
+        detailedDescription: formData.detailedDescription.trim(),
         price: parseFloat(formData.price),
-        images: imageDataUrls, // Use the stored image data URLs
+        images: imageUrls, // Use the file URLs instead of base64 data
         category: formData.category,
         tags: tags,
         inventory: parseInt(formData.inventory) || 0,
@@ -269,7 +272,7 @@ export default function NewProduct() {
 
                     <div>
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="description">Description</Label>
+                        <Label htmlFor="description">Short Description</Label>
                         <div className="flex items-center space-x-2">
                           {images.length > 0 && (
                             <Button
@@ -306,14 +309,30 @@ export default function NewProduct() {
                         id="description"
                         value={formData.description}
                         onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                        placeholder="Upload an image to automatically generate all product details, or fill in manually..."
-                        rows={6}
+                        placeholder="Short marketing tagline or summary sentence..."
+                        rows={2}
                         disabled={isAnalyzingImage}
                         className={isAnalyzingImage ? "opacity-50" : ""}
                         required
                       />
                       <p className="text-sm text-muted-foreground mt-1">
-                        AI will automatically generate all product details when you upload the first image. You can edit everything afterwards or click "Re-analyze Image" to regenerate all fields.
+                        Brief tagline that appears in product summary areas.
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="detailedDescription">Detailed Description</Label>
+                      <Textarea
+                        id="detailedDescription"
+                        value={formData.detailedDescription}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, detailedDescription: e.target.value }))}
+                        placeholder="Comprehensive product description with specifications. Use • for bullet points..."
+                        rows={8}
+                        disabled={isAnalyzingImage}
+                        className={isAnalyzingImage ? "opacity-50" : ""}
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Detailed product information with specifications. Use • symbols for bullet points.
                       </p>
                     </div>
 

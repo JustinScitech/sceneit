@@ -137,6 +137,7 @@ export type Product = {
   handle: string;
   categoryId?: string;
   description: string;
+  detailedDescription?: string;
   descriptionHtml: string;
   featuredImage: Image;
   currencyCode: string;

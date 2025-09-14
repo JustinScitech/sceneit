@@ -98,6 +98,7 @@ function adaptShopifyProduct(shopifyProduct: ShopifyProduct): Product {
   return {
     ...shopifyProduct,
     description,
+    detailedDescription: (shopifyProduct as any).detailedDescription || shopifyProduct.description,
     categoryId: shopifyProduct.productType || shopifyProduct.category?.name,
     tags: [],
     availableForSale: true,

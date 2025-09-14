@@ -19,6 +19,13 @@ export const imageStorage = {
         return;
       }
 
+      // Check file size limit (5MB)
+      const MAX_FILE_SIZE = 5 * 1024 * 1024;
+      if (file.size > MAX_FILE_SIZE) {
+        reject(new Error('File too large. Maximum size is 5MB.'));
+        return;
+      }
+
       const reader = new FileReader();
       
       reader.onload = (e) => {
@@ -39,12 +46,42 @@ export const imageStorage = {
           const existingImages = imageStorage.getAllImages();
           const updatedImages = [...existingImages, storedImage];
           
-          // Store updated images
-          localStorage.setItem(IMAGE_STORAGE_KEY, JSON.stringify(updatedImages));
+          // Try to store the image, with automatic cleanup if quota exceeded
+          try {
+            const dataToStore = JSON.stringify(updatedImages);
+            localStorage.setItem(IMAGE_STORAGE_KEY, dataToStore);
+          } catch (storageError) {
+            if (storageError instanceof Error && storageError.name === 'QuotaExceededError') {
+              // Attempt automatic cleanup of old images
+              const cleanedUp = imageStorage.cleanupOldImages(3); // Keep only 3 most recent
+              if (cleanedUp > 0) {
+                try {
+                  // Retry with cleaned up storage
+                  const freshImages = imageStorage.getAllImages();
+                  const retryImages = [...freshImages, storedImage];
+                  const retryData = JSON.stringify(retryImages);
+                  localStorage.setItem(IMAGE_STORAGE_KEY, retryData);
+                } catch (retryError) {
+                  reject(new Error('Storage quota exceeded even after cleanup. Please delete more images manually.'));
+                  return;
+                }
+              } else {
+                reject(new Error('Storage quota exceeded. Please delete some images manually.'));
+                return;
+              }
+            } else {
+              throw storageError;
+            }
+          }
           
           resolve(storedImage);
         } catch (error) {
-          reject(new Error('Failed to store image'));
+          console.error('Image storage error:', error);
+          if (error instanceof Error && error.name === 'QuotaExceededError') {
+            reject(new Error('Storage quota exceeded. Please delete some images.'));
+          } else {
+            reject(new Error('Failed to store image: ' + (error instanceof Error ? error.message : 'Unknown error')));
+          }
         }
       };
       
@@ -117,5 +154,33 @@ export const imageStorage = {
       totalSize,
       totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2)
     };
+  },
+
+  // Clean up old images, keeping only the most recent ones
+  cleanupOldImages: (keepCount: number = 5): number => {
+    if (typeof window === 'undefined') return 0;
+    
+    try {
+      const images = imageStorage.getAllImages();
+      if (images.length <= keepCount) return 0;
+      
+      // Sort by creation date (newest first)
+      const sortedImages = images.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      // Keep only the most recent images
+      const imagesToKeep = sortedImages.slice(0, keepCount);
+      const deletedCount = images.length - imagesToKeep.length;
+      
+      // Store the cleaned up images
+      localStorage.setItem(IMAGE_STORAGE_KEY, JSON.stringify(imagesToKeep));
+      
+      console.log(`Cleaned up ${deletedCount} old images, kept ${imagesToKeep.length} most recent`);
+      return deletedCount;
+    } catch (error) {
+      console.error('Error cleaning up old images:', error);
+      return 0;
+    }
   }
 };

@@ -33,11 +33,13 @@ export function useWebSocket({
 
   const connect = useCallback(() => {
     // Prevent multiple connections
-    if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
+      console.log('WebSocket already connecting/connected, skipping');
       return;
     }
     
     try {
+      console.log('Creating new WebSocket connection to:', url);
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
@@ -68,8 +70,14 @@ export function useWebSocket({
         if (reconnectAttempts < maxReconnectAttempts) {
           console.log(`WS-RECONNECTING... (${reconnectAttempts + 1}/${maxReconnectAttempts})`);
           reconnectTimeoutRef.current = setTimeout(() => {
-            setReconnectAttempts(prev => prev + 1);
-            connect();
+            setReconnectAttempts(prev => {
+              const newAttempts = prev + 1;
+              // Create a new connection without triggering useEffect
+              if (newAttempts <= maxReconnectAttempts) {
+                connect();
+              }
+              return newAttempts;
+            });
           }, reconnectInterval);
         } else {
           console.log('WS-MAX-RECONNECT-REACHED');
@@ -84,7 +92,7 @@ export function useWebSocket({
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
     }
-  }, [url, onMessage, onConnect, onDisconnect, onError, reconnectInterval, maxReconnectAttempts, reconnectAttempts]);
+  }, [url, onMessage, onConnect, onDisconnect, onError, reconnectInterval, maxReconnectAttempts]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

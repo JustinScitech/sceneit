@@ -9,11 +9,13 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useWebSocket } from '@/lib/hooks/use-websocket';
 import { use3DControls } from '@/lib/hooks/use-3d-controls';
 import { VapiChat } from '@/components/vapi/vapi-chat';
+import { useCart } from '@/components/cart/cart-context';
 import { initializeWebhookServer } from '@/lib/utils/webhook-init';
 
 interface Product3DViewerProps {
   product: Product;
   className?: string;
+  enableWebSocket?: boolean;
 }
 
 interface ModelInfo {
@@ -23,7 +25,7 @@ interface ModelInfo {
   animations: number;
 }
 
-export function Product3DViewer({ product, className }: Product3DViewerProps) {
+export function Product3DViewer({ product, className, enableWebSocket = false }: Product3DViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<{
@@ -41,6 +43,9 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [isDragOver, setIsDragOver] = useState(false);
 
+  // Get cart context for adding items
+  const { addItem } = useCart();
+
   // Initialize 3D controls hook
   const { setSceneRef, moveCameraTo, logCurrentPositions } = use3DControls({
     onPositionChange: (position) => {
@@ -49,8 +54,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
     }
   });
 
-  // WebSocket connection for VAPI commands (enabled by default for VAPI integration)
-  const [enableWebSocket, setEnableWebSocket] = useState(true);
+  
   
   console.log('WebSocket enabled:', enableWebSocket);
   console.log('WebSocket URL:', enableWebSocket ? 'ws://localhost:8081' : 'disabled');
@@ -64,6 +68,69 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
         const { x, y, z, target } = message.params;
         console.log('EXECUTING-CAMERA-MOVE:', { x, y, z, target });
         moveCameraTo({ x, y, z, target });
+      } else if (message.type === 'addToCart' && message.action === 'addItem') {
+        console.log('ADDING-TO-CART:', message);
+        
+        const globalPurchaseId = message.globalPurchaseId;
+        if (!globalPurchaseId) {
+          console.log('No globalPurchaseId in message, ignoring');
+          return;
+        }
+        
+        // Check if this purchase has already been processed by any client
+        const processedPurchasesKey = 'sceneit_processed_purchases';
+        const existingProcessed = JSON.parse(localStorage.getItem(processedPurchasesKey) || '{}');
+        
+        // Clean up old entries (older than 30 seconds)
+        const now = Date.now();
+        Object.keys(existingProcessed).forEach(key => {
+          if (now - existingProcessed[key] > 30000) {
+            delete existingProcessed[key];
+          }
+        });
+        
+        // Check if this purchase was already processed
+        if (existingProcessed[globalPurchaseId]) {
+          console.log('Purchase already processed by another client:', globalPurchaseId);
+          return;
+        }
+        
+        // Mark this purchase as processed
+        existingProcessed[globalPurchaseId] = now;
+        localStorage.setItem(processedPurchasesKey, JSON.stringify(existingProcessed));
+        
+        // Use the cart item from the WebSocket message (contains correct product info)
+        const cartItem = message.cartItem;
+        if (cartItem && addItem) {
+          console.log('Adding product to cart via voice command:', cartItem);
+          console.log('Product ID from VAPI:', message.productId);
+          console.log('Variant ID from VAPI:', message.variantId);
+          
+          try {
+            // Create a variant-like object from the cart item for addItem function
+            const variant = {
+              id: cartItem.merchandise.id,
+              title: cartItem.merchandise.title,
+              availableForSale: true,
+              selectedOptions: cartItem.merchandise.selectedOptions || [],
+              price: {
+                amount: cartItem.cost.totalAmount.amount,
+                currencyCode: cartItem.cost.totalAmount.currencyCode
+              }
+            };
+            
+            const productData = cartItem.merchandise.product;
+            
+            console.log('Adding item to cart with variant:', variant);
+            console.log('Adding item to cart with product:', productData);
+            addItem(variant, productData);
+            console.log('addItem called successfully with VAPI product data!');
+          } catch (error) {
+            console.error('Error calling addItem:', error);
+          }
+        } else {
+          console.log('Missing cart item data:', { cartItem: !!cartItem, addItem: !!addItem });
+        }
       }
     },
     onConnect: () => {
@@ -761,17 +828,17 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
       <div className="absolute bottom-4 left-4 w-80">
         <VapiChat 
           productContext={{
+            id: product.id,
             name: product.title,
             price: product.priceRange.maxVariantPrice.amount + ' ' + product.priceRange.maxVariantPrice.currencyCode,
             description: product.description,
-            detailedDescription: "The Verde Lounge Chair is a bold blend of sculptural form and deep comfort. Upholstered in rich olive green leather, its fluid silhouette features curved armrests and a wide seat that invites you to sink in. A matte black wooden frame adds structure and contrast, making it a refined statement piece for modern living rooms, reading corners, or offices. Dimensions: 82 cm height × 90 cm width × 86 cm depth. Materials: Genuine leather upholstery, solid wood frame. Finish: Olive green seat with matte black legs. Comfort: Generously padded with ergonomic support. Weight Capacity: Up to 150 kg (330 lbs). Assembly: Arrives fully assembled. Elegant and enveloping — the Verde chair transforms any space into a luxurious retreat."
+            detailedDescription: product.detailedDescription || product.description
           }}
         />
         
-        {/* WebSocket Connection Toggle */}
+        {/* WebSocket Connection Status */}
         <div className="mt-2">
-          <button
-            onClick={() => setEnableWebSocket(!enableWebSocket)}
+          <div
             className={cn(
               "px-3 py-1 text-xs rounded-full transition-colors",
               enableWebSocket 
@@ -780,7 +847,7 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
             )}
           >
             {enableWebSocket ? '🟢 WebSocket ON' : '⚫ WebSocket OFF'}
-          </button>
+          </div>
           {isConnected && (
             <span className="ml-2 text-xs text-green-600">Connected</span>
           )}
@@ -790,20 +857,20 @@ export function Product3DViewer({ product, className }: Product3DViewerProps) {
   );
 }
 
-// Mobile 3D Viewer (equivalent to MobileGallerySlider)
+// Mobile 3D Viewer (equivalent to MobileGallerySlider) - WebSocket disabled
 export function Mobile3DViewer({ product }: { product: Product }) {
   return (
     <div className="w-full h-full">
-      <Product3DViewer product={product} className="w-full h-full" />
+      <Product3DViewer product={product} className="w-full h-full" enableWebSocket={false} />
     </div>
   );
 }
 
-// Desktop 3D Viewer (equivalent to DesktopGallery)
+// Desktop 3D Viewer (equivalent to DesktopGallery) - WebSocket enabled
 export function Desktop3DViewer({ product }: { product: Product }) {
   return (
     <div className="w-full h-full min-h-screen p-4">
-      <Product3DViewer product={product} className="w-full h-full" />
+      <Product3DViewer product={product} className="w-full h-full" enableWebSocket={true} />
     </div>
   );
 }

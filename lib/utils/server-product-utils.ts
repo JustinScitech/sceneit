@@ -4,7 +4,7 @@ import type { VendorProduct } from '@/lib/types/vendor';
 import type { Product } from '@/lib/shopify/types';
 import { convertVendorProductToShopifyProduct } from './product-converter';
 
-const PRODUCTS_FILE_PATH = path.join(process.cwd(), 'server', 'tmp', 'vendor-products.json');
+const PRODUCTS_FILE_PATH = path.join(process.cwd(), 'data', 'products.json');
 
 // Ensure the directory exists
 function ensureDirectoryExists() {

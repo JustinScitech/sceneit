@@ -214,10 +214,37 @@ export default async function ProductPage(props: { params: Promise<{ handle: str
             </div>
           </div>
 
-          <Prose
-            className="col-span-full mb-auto opacity-70 max-md:order-3 max-md:my-6"
-            html={product.descriptionHtml}
-          />
+          <div className="col-span-full mb-auto opacity-70 max-md:order-3 max-md:my-6">
+            <div className="prose prose-sm max-w-none">
+              {product.detailedDescription ? (
+                // Local products with detailedDescription - show detailed content
+                product.detailedDescription.includes('•') ? (
+                  // Format with bullet points
+                  product.detailedDescription.split('•').map((part, index) => {
+                    if (index === 0) {
+                      return <p key={index} className="mb-4">{part.trim()}</p>;
+                    }
+                    const trimmedPart = part.trim();
+                    if (trimmedPart) {
+                      return (
+                        <div key={index} className="flex items-start gap-2 mb-2">
+                          <span className="text-sm mt-1">•</span>
+                          <span className="text-sm">{trimmedPart}</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })
+                ) : (
+                  // Plain detailed description
+                  <p>{product.detailedDescription}</p>
+                )
+              ) : (
+                // Shopify products - use Prose component for HTML rendering
+                <Prose html={product.descriptionHtml} />
+              )}
+            </div>
+          </div>
 
           <SidebarLinks className="flex-col-reverse max-md:hidden py-sides w-full max-w-[408px] pr-sides max-md:pr-0 max-md:py-0" />
         </div>

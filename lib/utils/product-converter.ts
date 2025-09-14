@@ -1,19 +1,23 @@
 import type { VendorProduct } from '@/lib/types/vendor';
 import type { Product } from '@/lib/shopify/types';
 
-// Convert local vendor products to Shopify Product format for consistent display
+// Convert local vendor products to local Product format for consistent display
 export function convertVendorProductToShopifyProduct(vendorProduct: VendorProduct): Product {
+  const localProductId = vendorProduct.id;
+  const localVariantId = `${vendorProduct.id}-variant-1`;
+
   return {
-    id: vendorProduct.id,
+    id: localProductId,
     handle: vendorProduct.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
     availableForSale: vendorProduct.isActive && vendorProduct.inventory > 0,
     title: vendorProduct.title,
     description: vendorProduct.description,
+    detailedDescription: vendorProduct.detailedDescription,
     descriptionHtml: `<p>${vendorProduct.description}</p>`,
     currencyCode: 'USD',
     options: [
       {
-        id: `${vendorProduct.id}-color`,
+        id: `${localProductId}-color`,
         name: 'Color',
         values: [
           {
@@ -35,7 +39,7 @@ export function convertVendorProductToShopifyProduct(vendorProduct: VendorProduc
     },
     variants: [
       {
-        id: `${vendorProduct.id}-variant-1`,
+        id: localVariantId,
         title: 'Default',
         availableForSale: vendorProduct.isActive && vendorProduct.inventory > 0,
         selectedOptions: [

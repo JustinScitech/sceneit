@@ -73,8 +73,21 @@ function createEmptyCart(): Cart {
   };
 }
 
-function cartReducer(state: Cart | undefined, action: CartAction): Cart {
-  const currentCart = state || createEmptyCart();
+function cartReducer(currentCart: Cart | undefined, action: CartAction): Cart | undefined {
+  if (!currentCart) {
+    // Initialize empty cart if undefined
+    currentCart = {
+      id: `temp-cart-${Date.now()}`,
+      checkoutUrl: '',
+      totalQuantity: 0,
+      lines: [],
+      cost: {
+        subtotalAmount: { amount: '0', currencyCode: 'USD' },
+        totalAmount: { amount: '0', currencyCode: 'USD' },
+        totalTaxAmount: { amount: '0', currencyCode: 'USD' }
+      }
+    };
+  }
 
   switch (action.type) {
     case 'UPDATE_ITEM': {
@@ -121,8 +134,10 @@ function cartReducer(state: Cart | undefined, action: CartAction): Cart {
     }
     case 'ADD_ITEM': {
       const { variant, product, previousQuantity } = action.payload;
+      console.log('Cart reducer ADD_ITEM:', { variant, product, previousQuantity });
       const existingItem = currentCart.lines.find(item => item.merchandise.id === variant.id);
       const targetQuantity = previousQuantity + 1;
+      console.log('Existing item:', existingItem, 'Target quantity:', targetQuantity);
 
       const updatedLines = existingItem
         ? currentCart.lines.map(item => {
@@ -180,8 +195,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [optimisticCart, updateOptimisticCart] = useOptimistic<Cart | undefined, CartAction>(cart, cartReducer);
 
   useEffect(() => {
-    CartActions.getCart().then(cart => {
-      if (cart) setCart(cart);
+    CartActions.getCart().then(localCart => {
+      if (localCart) {
+        setCart(localCart);
+      }
     });
   }, []);
 
@@ -198,12 +215,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const add = useCallback(
     async (variant: ProductVariant, product: Product) => {
+      console.log('Cart add called with:', { variant, product });
       const previousQuantity = optimisticCart?.lines.find(l => l.merchandise.id === variant.id)?.quantity || 0;
+      console.log('Previous quantity:', previousQuantity);
+      
       startTransition(() => {
+        console.log('Starting optimistic update with payload:', { variant, product, previousQuantity });
         updateOptimisticCart({ type: 'ADD_ITEM', payload: { variant, product, previousQuantity } });
       });
-      const fresh = await CartActions.addItem(variant.id);
-      if (fresh) setCart(fresh);
+      
+      // Save the updated cart to local storage
+      const updatedCart = cartReducer(optimisticCart, { type: 'ADD_ITEM', payload: { variant, product, previousQuantity } });
+      if (updatedCart) {
+        await CartActions.saveCart(updatedCart);
+        setCart(updatedCart);
+      }
     },
     [updateOptimisticCart, optimisticCart]
   );
