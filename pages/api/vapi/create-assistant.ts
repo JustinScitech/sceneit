@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       },
       server: {
-        url: "https://62b81d1df9ad.ngrok-free.app/api/vapi/webhook"
+        url: `${process.env.NGROK_URL}/api/vapi/webhook`
       }
     });
 
@@ -64,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       },
       server: {
-        url: "https://62b81d1df9ad.ngrok-free.app/api/vapi/webhook"
+        url: `${process.env.NGROK_URL}/api/vapi/webhook`
       }
     });
 
@@ -130,7 +130,7 @@ When the user asks for a position by name, use these coordinates to execute the 
         voiceId: "21m00Tcm4TlvDq8ikWAM"
       },
       server: {
-        url: "https://62b81d1df9ad.ngrok-free.app/api/vapi/webhook"
+        url: `${process.env.NGROK_URL}/api/vapi/webhook`
       }
     });
 

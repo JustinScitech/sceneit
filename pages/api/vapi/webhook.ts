@@ -57,7 +57,7 @@ function setupWebSocketHandlers() {
     });
   });
 
-  console.log('WebSocket server started on port 8082');
+  console.log('WebSocket server started on port 8081');
 }
 
 // Broadcast message to all connected clients
