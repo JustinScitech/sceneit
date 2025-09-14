@@ -20,6 +20,18 @@ export async function POST(request: NextRequest) {
     apiKey: apiKey,
   });
   try {
+    // Check if GROQ API key is available
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json(
+        { error: 'GROQ_API_KEY not configured. Image analysis is disabled.' },
+        { status: 503 }
+      );
+    }
+
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    });
+
     const { imageData } = await request.json();
 
     if (!imageData) {

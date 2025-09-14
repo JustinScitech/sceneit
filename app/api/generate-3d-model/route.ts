@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile } from 'fs/promises'
+import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
+import AdmZip from 'adm-zip'
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,12 +30,21 @@ export async function POST(request: NextRequest) {
     
     console.log('Calling external 3D conversion API...')
     
-    // Call the 3D conversion API with timeout
-    const response = await fetch('http://129.153.10.4:8001/convert', {
+    // Add query parameters for the new API (using faster, lower resolution settings)
+    const params = new URLSearchParams({
+      compress: 'true',
+      compression: 'zip',
+      bake_texture: 'true',
+      texture_resolution: '1024', // Reduced from 2048 for faster processing
+      mc_resolution: '256'        // Reduced from 512 for faster processing
+    })
+    
+    // Call the updated 3D conversion API with timeout
+    const response = await fetch(`http://129.158.241.97:8000/convert?${params}`, {
       method: 'POST',
       body: apiFormData,
-      // Add timeout to prevent hanging
-      signal: AbortSignal.timeout(60000) // 60 second timeout
+      // Add timeout to prevent hanging (increased for texture baking)
+      signal: AbortSignal.timeout(1800000) // 30 minute timeout (1800 seconds like the script)
     })
     
     console.log(`External API response status: ${response.status}`)
@@ -45,30 +55,62 @@ export async function POST(request: NextRequest) {
       throw new Error(`External API returned ${response.status}: ${response.statusText}`)
     }
     
-    // Get the GLB file as a buffer
-    const glbBuffer = await response.arrayBuffer()
-    console.log(`Received GLB file, size: ${glbBuffer.byteLength} bytes`)
+    // Get the ZIP file as a buffer
+    const zipBuffer = await response.arrayBuffer()
+    console.log(`Received ZIP file, size: ${zipBuffer.byteLength} bytes`)
     
-    // Create filename from product title
+    // Create directory name from product title
     const sanitizedTitle = productTitle.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
-    const filename = `${sanitizedTitle}.glb`
     
-    // Save to public/3D directory
+    // Create directories for the product
     const publicDir = path.join(process.cwd(), 'public', '3D')
-    const filePath = path.join(publicDir, filename)
+    const productDir = path.join(publicDir, sanitizedTitle)
     
-    console.log(`Saving GLB file to: ${filePath}`)
+    // Ensure directories exist
+    await mkdir(publicDir, { recursive: true })
+    await mkdir(productDir, { recursive: true })
     
-    // Write the file
-    await writeFile(filePath, Buffer.from(glbBuffer))
+    console.log(`Extracting ZIP to: ${productDir}`)
     
-    console.log(`Successfully saved 3D model: ${filename}`)
+    // Extract ZIP file using adm-zip
+    const zip = new AdmZip(Buffer.from(zipBuffer))
+    const zipEntries = zip.getEntries()
+    
+    let objFile = ''
+    let mtlFile = ''
+    let textureFile = ''
+    
+    // Extract each file from the ZIP
+    for (const entry of zipEntries) {
+      const entryPath = path.join(productDir, entry.entryName)
+      const entryContent = entry.getData()
+      
+      console.log(`Extracting: ${entry.entryName} (${entryContent.length} bytes)`)
+      await writeFile(entryPath, entryContent)
+      
+      // Keep track of important files
+      if (entry.entryName.endsWith('.obj')) {
+        objFile = entry.entryName
+      } else if (entry.entryName.endsWith('.mtl')) {
+        mtlFile = entry.entryName
+      } else if (entry.entryName.endsWith('.png')) {
+        textureFile = entry.entryName
+      }
+    }
+    
+    console.log(`Successfully extracted 3D model files to: ${sanitizedTitle}/`)
+    console.log(`Files: OBJ=${objFile}, MTL=${mtlFile}, Texture=${textureFile}`)
     
     return NextResponse.json({ 
       success: true, 
-      filename,
-      path: `/3D/${filename}`,
-      message: `3D model saved as ${filename}` 
+      productDir: sanitizedTitle,
+      files: {
+        obj: objFile,
+        mtl: mtlFile,
+        texture: textureFile
+      },
+      path: `/3D/${sanitizedTitle}/`,
+      message: `3D model extracted to ${sanitizedTitle}/` 
     })
     
   } catch (error) {
